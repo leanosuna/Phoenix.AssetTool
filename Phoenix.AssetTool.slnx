@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Phoenix.AssetTool.Cli/Phoenix.AssetTool.Cli.csproj" />
+  <Project Path="Phoenix.AssetTool.Core/Phoenix.AssetTool.Core.csproj" />
+  <Project Path="Phoenix.AssetTool.Gui/Phoenix.AssetTool.Gui.csproj" Id="bba97156-c8c6-4cc7-b3b0-0234afa3c7e6" />
+</Solution>

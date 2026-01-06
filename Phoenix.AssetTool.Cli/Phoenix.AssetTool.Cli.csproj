@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Phoenix.AssetTool</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>pat</ToolCommandName>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageOutputPath>C:\dev\LocalNuget</PackageOutputPath>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\Phoenix.AssetTool.Core\Phoenix.AssetTool.Core.csproj" />
+    <ProjectReference Include="..\Phoenix.AssetTool.Gui\Phoenix.AssetTool.Gui.csproj" />
+  </ItemGroup>
+
+</Project>
