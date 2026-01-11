@@ -12,7 +12,7 @@ namespace Phoenix.AssetTool.Core.Texture
     {
         public bool GenerateMipMaps { get; set; } = true;
 
-        public AssetCompressionFormat Format { get; set; } = AssetCompressionFormat.RGBA;
+        public AssetCompressionFormat Format { get; set; } = AssetCompressionFormat.BC3;
 
         public TextureWrap WrapS { get; set; } = TextureWrap.Repeat;
         public TextureWrap WrapT { get; set; } = TextureWrap.Repeat;

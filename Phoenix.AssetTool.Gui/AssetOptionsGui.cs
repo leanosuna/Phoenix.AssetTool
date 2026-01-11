@@ -234,61 +234,37 @@ namespace Phoenix.AssetTool.Gui
 
             var current = (int)options.Format;
 
-            string[] iComp = [
-                "RGBA - No Compression",
-                "BC1 - DXT1",
-                "BC3 - DXT5",
-                "BC5 - RGTC2"
-            ];
-
+            var compList = options.Format.Strings();
 
             ImGui.Checkbox("Generate mipmaps", ref mipEnabled);            
-            if(mipEnabled)
-            {
-                ImGui.Text("Compression Format");
-                if (ImGui.ListBox("##1", ref current, iComp, iComp.Length))
-                {
-                    options.Format = (AssetCompressionFormat)current;
-
-                }
-            }
             options.GenerateMipMaps = mipEnabled;
-            string[] iWrap = [
-                "Repeat",
-                "Mirrored Repeat",
-                "Clamp To Edge",
-                "Clamp To Border"
-            ];
 
-            
+            ImGui.Text("Compression Format");
+            if (ImGui.ListBox("##1", ref current, compList, compList.Length))
+                options.Format = (AssetCompressionFormat)current;
+
+            var wrapList = options.WrapS.Strings();
+                        
             int current2 = options.WrapS.Index();
             ImGui.Text("Wrap Horizontal");
-            if (ImGui.ListBox("##2", ref current2, iWrap, iWrap.Length))
+            if (ImGui.ListBox("##2", ref current2, wrapList, wrapList.Length))
                 options.WrapS = options.WrapS.At(current2);
             
             var current3 = options.WrapT.Index();
             ImGui.Text("Wrap Vertical");
-            if (ImGui.ListBox("##3", ref current3, iWrap, iWrap.Length))
+            if (ImGui.ListBox("##3", ref current3, wrapList, wrapList.Length))
                 options.WrapT = options.WrapT.At(current3);
-            
-            string[] iFilter= [
-                "Nearest",
-                "Linear",
-                "Nearest Mipmap Nearest",
-                "Linear Mipmap Nearest",
-                "Nearest Mipmap Linear",
-                "Linear Mipmap Linear"
-            ];
+
+            var filterList = options.Min.Strings();
 
             var current4 = options.Min.Index();
             ImGui.Text("Min Filter");
-            if (ImGui.ListBox("##4", ref current4, iFilter, iFilter.Length))
+            if (ImGui.ListBox("##4", ref current4, filterList, filterList.Length))
                 options.Min = options.Min.At(current4);
-
 
             var current5 = options.Mag.Index();
             ImGui.Text("Mag Filter"); 
-            if (ImGui.ListBox("##5", ref current5, iFilter, 2))
+            if (ImGui.ListBox("##5", ref current5, filterList, 2))
                 options.Mag = options.Mag.At(current5);
 
         }
