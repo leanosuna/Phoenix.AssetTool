@@ -1,4 +1,6 @@
-﻿using BCnEncoder.Shared;
+﻿using BCnEncoder;
+using BCnEncoder.Shared;
+using Phoenix.AssetImport.Texture;
 using Silk.NET.Assimp;
 using System;
 using System.Collections.Generic;
@@ -10,8 +12,12 @@ namespace Phoenix.AssetTool.Core.Texture
     {
         public bool GenerateMipMaps { get; set; } = true;
 
-        public bool WrapS { get; set; } = GLEnum.DecrWrap;
+        public AssetCompressionFormat Format { get; set; } = AssetCompressionFormat.RGBA;
 
-        public CompressionFormat Format { get; set; } = CompressionFormat.Rgba;
+        public TextureWrap WrapS { get; set; } = TextureWrap.Repeat;
+        public TextureWrap WrapT { get; set; } = TextureWrap.Repeat;
+        public TextureFilter Min { get; set; } = TextureFilter.Linear;
+        public TextureFilter Mag { get; set; } = TextureFilter.Linear;
+
     }
 }

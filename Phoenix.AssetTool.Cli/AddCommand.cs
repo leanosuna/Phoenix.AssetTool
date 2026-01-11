@@ -72,15 +72,9 @@ namespace AssetTool.Cli
                 return;
             }
 
-            var outputRelative = Path.ChangeExtension(
-                Path.Combine("ContentBin", relative),
-                ".bin"
-            ).Replace('\\', '/');
-
             manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                OutputFilePath = outputRelative,
                 Type = type
             });
 

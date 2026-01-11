@@ -12,9 +12,9 @@ namespace Phoenix.AssetTool.Gui
 {
     public static class AssetBrowserGui
     {
-        static string manifestAbsolutePath;
-        static string manifestRootDirectory;
-        static AssetManifest manifest;
+        static string manifestAbsolutePath = default!;
+        static string manifestRootDirectory = default!;
+        static AssetManifest manifest = default!;
         public static void SetManifest(AssetManifest assetManifest, string root)
         {
             manifest = assetManifest;
@@ -28,16 +28,19 @@ namespace Phoenix.AssetTool.Gui
             if (manifest == null)
                 return;
 
-            if (ImGui.Button("Build"))
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
+            if (ImGui.Button("Build All"))
             {
                 AssetBuildController.StartBuild(manifest, false);
             }
+            ImGui.PopStyleColor();
             ImGui.SameLine();
-            if (ImGui.Button("Rebuild"))
+            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
+            if (ImGui.Button("Rebuild All"))
             {
                 AssetBuildController.StartBuild(manifest, true);
             }
-
+            ImGui.PopStyleColor();
             AssetBuildGui.DrawBuildWindow(dt);
 
             ImGui.NewLine();
@@ -82,7 +85,7 @@ namespace Phoenix.AssetTool.Gui
                 DrawFile(file);
             }
         }
-        public static (AssetEntry asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
+        public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
         private static void DrawFile(
             string absoluteFilePath)
         {

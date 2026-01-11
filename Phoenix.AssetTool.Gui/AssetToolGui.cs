@@ -154,7 +154,7 @@ namespace Phoenix.AssetTool.Gui
                             JsonIOTools.Save(res.path, am);
                             assetManifest = am;
                             manifestLoaded = true;
-                            assetManifestPath = res.dir;
+                            assetManifestPath = Path.Combine(res.dir,DefaultManifestName).Replace('\\', '/');
                             AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
                         }
 
@@ -166,11 +166,11 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.Text("Asset manifest found in this directory.");
                     if (ImGui.Button("Open existing manifest"))
                     {
-                        if(JsonIOTools.Load(res.dir, out AssetManifest am))
+                        assetManifestPath = Path.Combine(res.dir, DefaultManifestName).Replace('\\', '/');
+                        if(JsonIOTools.Load(assetManifestPath, out AssetManifest am))
                         {
                             assetManifest = am;
                             manifestLoaded = true;
-                            assetManifestPath = res.dir;
                             AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
                         }
                         else
@@ -189,7 +189,7 @@ namespace Phoenix.AssetTool.Gui
                         JsonIOTools.Save(res.path, am);
                         assetManifest = am;
                         manifestLoaded = true;
-                        assetManifestPath = res.dir;
+                        assetManifestPath = Path.Combine(res.dir, DefaultManifestName).Replace('\\', '/');
                         AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
 
                         ImGui.CloseCurrentPopup();

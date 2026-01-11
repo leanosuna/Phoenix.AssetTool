@@ -53,7 +53,7 @@ namespace Phoenix.AssetTool.Gui
                     a.State == AssetBuildState.Failed);
 
                 ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
-                if (total > 0)
+                if (total > 0 && done != total)
                     ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
                 ImGui.PopStyleColor();
                 if (done == total)
@@ -74,6 +74,7 @@ namespace Phoenix.AssetTool.Gui
             {
                 AssetBuildState.Pending => FileTools.ColorWhite,
                 AssetBuildState.Building => FileTools.ColorYellow,
+                AssetBuildState.Encoding => FileTools.ColorYellow,
                 AssetBuildState.Built => FileTools.ColorGreen,
                 AssetBuildState.Failed => FileTools.ColorRed,
                 AssetBuildState.Skipped => FileTools.ColorWhite,
@@ -83,9 +84,10 @@ namespace Phoenix.AssetTool.Gui
             ImGui.PushStyleColor(ImGuiCol.Text, color);
 
             ImGui.TextUnformatted(item.Asset.RelativePath);
-
+            
             ImGui.SameLine(ImGui.GetWindowWidth() - 150);
 
+            bool showProgress = false;
             switch (item.State)
             {
                 case AssetBuildState.Pending:
@@ -93,6 +95,11 @@ namespace Phoenix.AssetTool.Gui
                     break;
                 case AssetBuildState.Building:
                     ImGui.Text("Building...");
+                    showProgress = true;
+                    break;
+                case AssetBuildState.Encoding:
+                    ImGui.Text("Encoding...");
+                    showProgress = true; 
                     break;
                 case AssetBuildState.Built:
                     ImGui.Text("OK");
@@ -104,6 +111,14 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.Text("Skipped");
                     break;
             }
+            if (showProgress)
+            {
+                ImGui.SetNextItemWidth(140);
+                ImGui.SameLine(ImGui.GetWindowWidth() - 300);
+                ImGui.ProgressBar(-1.0f * (float)ImGui.GetTime(), new Vector2(0.0f, 0.0f));
+            }
+
+
 
             ImGui.PopStyleColor();
 

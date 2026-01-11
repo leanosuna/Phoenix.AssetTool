@@ -1,10 +1,15 @@
-﻿using ImGuiNET;
+﻿using BCnEncoder.Shared;
+using ImGuiNET;
+using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core;
+using Phoenix.AssetTool.Core.AssetBuildOptions;
 using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using Silk.NET.Assimp;
+using Silk.NET.Core.Native;
+using SixLabors.ImageSharp.ColorSpaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,8 +27,7 @@ namespace Phoenix.AssetTool.Gui
 
         static AssetManifest assetManifest = default!;
 
-        static AssetLoadOptions assetLoadOptions;
-
+        
         static ModelLoadOptions modelOptions;
         static TextureLoadOptions textureOptions;
         static ShaderLoadOptions shaderOptions;
@@ -37,8 +41,7 @@ namespace Phoenix.AssetTool.Gui
         {
             if (path == "")
                 return;
-            assetLoadOptions = FileTools.LoadAssetOptions();
-
+            
             DrawFileHeader(asset, type, path);
             
             switch (type)
@@ -48,10 +51,10 @@ namespace Phoenix.AssetTool.Gui
                     DrawModelOptions(asset,path);
                     break;
                 case AssetType.Texture:
-                    DrawTextureOptions();
+                    DrawTextureOptions(asset, path);
                     break;
                 case AssetType.Shader:
-                    DrawShaderOptions();
+                    DrawShaderOptions(asset, path);
                     break;
             }
         }
@@ -89,18 +92,9 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.SameLine();
                 if (ImGui.Button("Save options"))
                 {
-                    var assetOptions = FileTools.LoadAssetOptions();
-
-                    switch(type)
-                    {
-                        case AssetType.Model:
-                            assetOptions.Models[asset.RelativePath] = modelOptions;
-                            break;
-
-                    }
-                    FileTools.SaveAssetOptions();
                     
-
+                    
+                    
                 }
 
 
@@ -110,6 +104,7 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
                     if (ImGui.Button("Build"))
                     {
+                        SaveOptions(asset);
                         AssetBuildController.StartBuildAsset(assetManifest, asset, false);
                     }
                     ImGui.PopStyleColor();
@@ -119,6 +114,7 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
                     if (ImGui.Button("Rebuild"))
                     {
+                        SaveOptions(asset); 
                         AssetBuildController.StartBuildAsset(assetManifest, asset, true);
                     }
                     ImGui.PopStyleColor();
@@ -126,14 +122,27 @@ namespace Phoenix.AssetTool.Gui
             }
             ImGui.NewLine();
         }
+        static void SaveOptions(AssetEntry asset)
+        {
+            switch (asset.Type)
+            {
+                case AssetType.Model:
+                    AssetOptions.Set(asset.RelativePath, modelOptions);
+                    break;
+                case AssetType.Texture:
+                    AssetOptions.Set(asset.RelativePath, textureOptions);
+                    break;
+                case AssetType.Shader:
+                    AssetOptions.Set(asset.RelativePath, shaderOptions);
+                    break;
+
+            }
+        }
+
+
         public static void DrawModelOptions(AssetEntry asset, string path)
         {
-            if (!assetLoadOptions.Models.TryGetValue(path, out modelOptions))
-            {
-                modelOptions = new ModelLoadOptions();
-
-                assetLoadOptions.Models[path] = modelOptions;
-            }
+            modelOptions = AssetOptions.OfModel(path);
             var options = modelOptions;
 
             var flags = options.AssimpFlags;
@@ -214,11 +223,76 @@ namespace Phoenix.AssetTool.Gui
 
             
         }
-        public static void DrawTextureOptions()
+        public static void DrawTextureOptions(AssetEntry asset, string path)
         {
             ImGui.Text($"TEXTURE LOAD OPTIONS");
+
+            textureOptions = AssetOptions.OfTexture(path);
+            
+            var options = textureOptions;
+            var mipEnabled = options.GenerateMipMaps;
+
+            var current = (int)options.Format;
+
+            string[] iComp = [
+                "RGBA - No Compression",
+                "BC1 - DXT1",
+                "BC3 - DXT5",
+                "BC5 - RGTC2"
+            ];
+
+
+            ImGui.Checkbox("Generate mipmaps", ref mipEnabled);            
+            if(mipEnabled)
+            {
+                ImGui.Text("Compression Format");
+                if (ImGui.ListBox("##1", ref current, iComp, iComp.Length))
+                {
+                    options.Format = (AssetCompressionFormat)current;
+
+                }
+            }
+            options.GenerateMipMaps = mipEnabled;
+            string[] iWrap = [
+                "Repeat",
+                "Mirrored Repeat",
+                "Clamp To Edge",
+                "Clamp To Border"
+            ];
+
+            
+            int current2 = options.WrapS.Index();
+            ImGui.Text("Wrap Horizontal");
+            if (ImGui.ListBox("##2", ref current2, iWrap, iWrap.Length))
+                options.WrapS = options.WrapS.At(current2);
+            
+            var current3 = options.WrapT.Index();
+            ImGui.Text("Wrap Vertical");
+            if (ImGui.ListBox("##3", ref current3, iWrap, iWrap.Length))
+                options.WrapT = options.WrapT.At(current3);
+            
+            string[] iFilter= [
+                "Nearest",
+                "Linear",
+                "Nearest Mipmap Nearest",
+                "Linear Mipmap Nearest",
+                "Nearest Mipmap Linear",
+                "Linear Mipmap Linear"
+            ];
+
+            var current4 = options.Min.Index();
+            ImGui.Text("Min Filter");
+            if (ImGui.ListBox("##4", ref current4, iFilter, iFilter.Length))
+                options.Min = options.Min.At(current4);
+
+
+            var current5 = options.Mag.Index();
+            ImGui.Text("Mag Filter"); 
+            if (ImGui.ListBox("##5", ref current5, iFilter, 2))
+                options.Mag = options.Mag.At(current5);
+
         }
-        public static void DrawShaderOptions()
+        public static void DrawShaderOptions(AssetEntry asset, string path)
         {
             ImGui.Text($"SHADER LOAD OPTIONS");
         }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Phoenix.AssetTool.Core.AssetBuildOptions;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Reflection;
@@ -17,47 +18,23 @@ namespace Phoenix.AssetTool.Core
         static string manifestAbsolutePath = "";
         static string manifestRootDirectory = "";
         static AssetManifest manifest = default!;
-        static AssetLoadOptions assetLoadOptions = default!;
+        public static AssetLoadOptions AssetLoadOptions = default!;
 
-        const string AssetLoadOptionsDefaultPath ="asset-load-options.json";
-        static string assetLoadOptionsAbsolutePath = "";
-
+        
         public static void SetManifest(AssetManifest assetManifest, string root)
         {
             manifest = assetManifest;
             manifestAbsolutePath = root;
             manifestRootDirectory = assetManifest.BaseDirectory;
 
-            LoadAssetOptions();
+            AssetOptions.Init(manifestRootDirectory);
+            //ReadAssetOptions();
         }
         public static void SaveManifest()
         {
             JsonIOTools.Save(manifestAbsolutePath, manifest);
         }
-        public static void SaveAssetOptions()
-        {
-            JsonIOTools.Save(assetLoadOptionsAbsolutePath, assetLoadOptions);
-        }
-
-        public static AssetLoadOptions LoadAssetOptions()
-        {
-            if (assetLoadOptions == null)
-            {
-                var optionsPath = Path.Combine(manifestRootDirectory, AssetLoadOptionsDefaultPath).Replace('\\', '/');
-                assetLoadOptionsAbsolutePath = optionsPath;
-                if (!File.Exists(optionsPath))
-                {
-                    //Console.WriteLine("created");
-                    JsonIOTools.Save(optionsPath, new AssetLoadOptions());
-                }
-
-                //Console.WriteLine("loaded");
-                JsonIOTools.Load(optionsPath, out assetLoadOptions);
-            }
-            //Console.WriteLine("accessed");
-            return assetLoadOptions;
-        }
-
+        
         public static void ToggleFile(string relative, bool save = true)
         {
             var existing = manifest.Assets
@@ -70,15 +47,10 @@ namespace Phoenix.AssetTool.Core
                 return;
             }
 
-            var output = Path.ChangeExtension(
-                Path.Combine("ContentBin", relative),
-                ".bin"
-            ).Replace('\\', '/');
-
+            
             manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                OutputFilePath = output,
                 Type = GuessType(relative)
             });
 
@@ -98,15 +70,10 @@ namespace Phoenix.AssetTool.Core
                 return;
             }
 
-            var output = Path.ChangeExtension(
-                Path.Combine("ContentBin", relative),
-                ".bin"
-            ).Replace('\\', '/');
-
+            
             manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                OutputFilePath = output,
                 Type = GuessType(relative)
             });
             if (save)
@@ -161,15 +128,16 @@ namespace Phoenix.AssetTool.Core
             JsonIOTools.Save(manifestAbsolutePath, manifest);
         }
 
-        public static (bool tracked, bool built) VerifyAsset(AssetEntry asset)
+        public static (bool tracked, bool built) VerifyAsset(AssetEntry? asset)
         {
             if(asset == null)
                 return (false, false);
 
             var builtPath = Path.Combine(
                 manifest.BaseDirectory,
-                asset.OutputFilePath
-            );
+                "ContentBin",
+                asset.RelativePath);
+            builtPath = Path.ChangeExtension(builtPath, "bin");
 
             return (true, File.Exists(builtPath));
         }
