@@ -1,34 +1,52 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using BCnEncoder.Encoder;
-using BCnEncoder.Shared;
+﻿using BCnEncoder.Encoder;
 using Phoenix.AssetTool.Core.Build;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using System.Drawing;
+using System.Numerics;
 
 
 namespace Phoenix.AssetTool.Core.Texture
 {
     public static class TextureBinaryWriter
     {
-        public static void Build(
-            AssetBuildStatus status,
-            TextureLoadOptions options,
-            string sourcePath,
-            string outputPath)
+        public static void Build(byte[] compressed, AssetBuildStatus status, 
+            TextureLoadOptions options, string outputPath)
+        {
+            Console.WriteLine($"before internal {compressed.Length}");
+
+            using Image<Rgba32> image = Image.Load<Rgba32>(compressed);
+
+            (Vector2 size, byte[] buffer) data = ImageToBytes(image);
+            InternalBuild(data.size, data.buffer, status, options, outputPath);
+            
+        }
+        public static void Build(AssetBuildStatus status, TextureLoadOptions options, 
+            string sourcePath, string outputPath)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
 
             using Image<Rgba32> image = Image.Load<Rgba32>(sourcePath);
+            
+            (Vector2 size, byte[] buffer) data = ImageToBytes(image);
+            InternalBuild(data.size, data.buffer, status, options, outputPath);
+        }
 
-            int width = image.Width;
-            int height = image.Height;
-            byte[] pixelData = new byte[width * height * 4];
-            image.CopyPixelDataTo(pixelData);
+        public static void Build(Vector2 size, byte[] buffer, AssetBuildStatus status, 
+            TextureLoadOptions options, string outputPath)
+        {
+            InternalBuild(size, buffer, status, options, outputPath);
+        }
+
+
+        private static void InternalBuild(Vector2 size, byte[] pixelData, AssetBuildStatus status, 
+            TextureLoadOptions options, string outputPath)
+        {
+            var w = (int)size.X;
+            var h = (int)size.Y;
 
             var format = options.Format.ConvertFormat();
+            Console.WriteLine($"format {format} pixelData len {pixelData.Length}");
             var encoder = new BcEncoder
             {
                 OutputOptions =
@@ -40,20 +58,20 @@ namespace Phoenix.AssetTool.Core.Texture
             };
             
             var mipCount = 1;
-            List<(int w, int h)> mipSizes = [(width, height)];
-            
+            List<Vector2> mipSizes = [new Vector2(w, h)];
+
             if (options.GenerateMipMaps)
             {
-                mipCount = encoder.CalculateNumberOfMipLevels(width, height);
-                for(int i = 1; i < mipCount; i++)
+                mipCount = encoder.CalculateNumberOfMipLevels(w, h);
+                for (int i = 1; i < mipCount; i++)
                 {
-                    encoder.CalculateMipMapSize(width, height, i, out int mWidth, out int mHeight);
-                    mipSizes.Add((mWidth, mHeight));
+                    encoder.CalculateMipMapSize(w, h, i, out int mWidth, out int mHeight);
+                    mipSizes.Add(new Vector2(mWidth, mHeight));
                 }
             }
 
             status.State = AssetBuildState.Encoding;
-            var encodedBytes = encoder.EncodeToRawBytes(pixelData, width, height, PixelFormat.Rgba32);
+            var encodedBytes = encoder.EncodeToRawBytes(pixelData, w, h, PixelFormat.Rgba32);
             status.State = AssetBuildState.Building;
             var encodedMips = encodedBytes.GetLength(0);
 
@@ -76,16 +94,29 @@ namespace Phoenix.AssetTool.Core.Texture
 
             bw.Write((byte)options.Format);
             bw.Write(mipCount);
-            
+
             for (int i = 0; i < mipCount; i++)
             {
-                bw.Write(mipSizes[i].w);
-                bw.Write(mipSizes[i].h);
+                bw.Write((int)mipSizes[i].X);
+                bw.Write((int)mipSizes[i].Y);
                 bw.Write(encodedBytes[i].Length);
                 bw.Write(encodedBytes[i]);
 
             }
         }
+
+        private static (Vector2 size, byte[] data) ImageToBytes(Image<Rgba32> image)
+        {
+            int w = image.Width;
+            int h = image.Height;
+
+            (Vector2 s, byte[] d) = (new Vector2(w, h), new byte[w * h * 4]);
+            Console.WriteLine($"itb {w} {h} {d.Length}");
+            image.CopyPixelDataTo(d);
+
+            return (s, d);
+        }
+
     }
 
 }

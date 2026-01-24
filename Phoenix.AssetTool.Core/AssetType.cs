@@ -8,6 +8,7 @@ namespace Phoenix.AssetTool.Core
     {
         Model,
         Texture,
+        ExtTexture,
         Shader,
         Unknown
     }

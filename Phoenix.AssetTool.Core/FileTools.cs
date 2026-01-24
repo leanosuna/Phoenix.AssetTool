@@ -15,88 +15,65 @@ namespace Phoenix.AssetTool.Core
         public static readonly Vector4 ColorGreen = new(0f, 1f, 0f, 1f);
         public static readonly Vector4 ColorRed = new(1f, 0f, 0f, 1f);
 
-        static string manifestAbsolutePath = "";
-        static string manifestRootDirectory = "";
-        static AssetManifest manifest = default!;
         public static AssetLoadOptions AssetLoadOptions = default!;
 
         
-        public static void SetManifest(AssetManifest assetManifest, string root)
-        {
-            manifest = assetManifest;
-            manifestAbsolutePath = root;
-            manifestRootDirectory = assetManifest.BaseDirectory;
-
-            AssetOptions.Init(manifestRootDirectory);
-            //ReadAssetOptions();
-        }
-        public static void SaveManifest()
-        {
-            JsonIOTools.Save(manifestAbsolutePath, manifest);
-        }
-        
         public static void ToggleFile(string relative, bool save = true)
         {
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
             {
-                manifest.Assets.Remove(existing);
+                Manifest.Assets.Remove(existing);
                 return;
             }
 
             
-            manifest.Assets.Add(new AssetEntry
+            Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
                 Type = GuessType(relative)
             });
 
-            if(save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+            if (save)
+                Manifest.Save();
         }
 
         public static void AddFile(string relative, bool save = true)
         {
-            
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
-            {
                 return;
-            }
-
-            
-            manifest.Assets.Add(new AssetEntry
+                        
+            Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
                 Type = GuessType(relative)
             });
             if (save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+                Manifest.Save();
         }
         public static void RemoveFile(string relative, bool save = true)
         {
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing == null)
-            {
                 return;
-            }
-            manifest.Assets.Remove(existing);
+            
+            Manifest.Assets.Remove(existing);
 
             if (save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+                Manifest.Save();
         }
         private static Dictionary<string, bool> _addedDirectories = new Dictionary<string, bool>();
-        public static void ToggleDirectory(
-            string absoluteDir)
+        public static void ToggleDirectory(string absoluteDir)
         {
             var files = Directory.EnumerateFiles(
                 absoluteDir,
@@ -111,13 +88,11 @@ namespace Phoenix.AssetTool.Core
 
             foreach (var file in files)
             {
-
-
                 if (GuessType(file) == AssetType.Unknown)
                     continue;
 
                 var relative = Path
-                    .GetRelativePath(manifestRootDirectory, file)
+                    .GetRelativePath(Manifest.BaseDirectory, file)
                     .Replace('\\', '/');
 
                 if (_addedDirectories[absoluteDir])
@@ -125,7 +100,7 @@ namespace Phoenix.AssetTool.Core
                 else
                     RemoveFile(relative, false);
             }
-            JsonIOTools.Save(manifestAbsolutePath, manifest);
+            Manifest.Save();
         }
 
         public static (bool tracked, bool built) VerifyAsset(AssetEntry? asset)
@@ -134,7 +109,7 @@ namespace Phoenix.AssetTool.Core
                 return (false, false);
 
             var builtPath = Path.Combine(
-                manifest.BaseDirectory,
+                Manifest.BaseDirectory,
                 "ContentBin",
                 asset.RelativePath);
             builtPath = Path.ChangeExtension(builtPath, "bin");

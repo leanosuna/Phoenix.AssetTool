@@ -1,30 +1,28 @@
-﻿using Phoenix.AssetTool.Core.Model;
+﻿using Newtonsoft.Json;
+using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
-using Silk.NET.Core;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.IO;
 
 namespace Phoenix.AssetTool.Core.AssetBuildOptions
 {
     public static class AssetOptions
     {
-        const string DefaultPath = "asset-load-options.json";
+        const string DefaultName = "asset-load-options.json";
         private static string _absolutePath = "";
         private static AssetLoadOptions _alo = default!;
-        public static void Init(string manifestRootDirectory)
+        public static void Init()
         {
-            var optionsPath = Path.Combine(manifestRootDirectory, DefaultPath).Replace('\\', '/');
+            var optionsPath = Path.Combine(Manifest.BaseDirectory, DefaultName).Replace('\\', '/');
             _absolutePath = optionsPath;
             if (!File.Exists(optionsPath))
             {
                 _alo = new AssetLoadOptions();
-                JsonIOTools.Save(optionsPath, _alo);
+                File.WriteAllText(_absolutePath, JsonConvert.SerializeObject(_alo, Formatting.Indented));
             }
             else
             {
-                JsonIOTools.Load(optionsPath, out _alo);
+                _alo = JsonConvert.DeserializeObject<AssetLoadOptions>(File.ReadAllText(_absolutePath))!;
             }
         }
 

@@ -37,8 +37,12 @@ namespace Phoenix.AssetTool.Gui
         {
             assetManifest = manifest;
         }
-        public static void Draw(AssetEntry asset, AssetType type, string path)
+        public static void Draw((AssetEntry? asset, AssetType type, string path) sfo)
         {
+            var asset = sfo.asset;
+            var type = sfo.type;
+            var path = sfo.path;
+
             if (path == "")
                 return;
             
@@ -105,7 +109,7 @@ namespace Phoenix.AssetTool.Gui
                     if (ImGui.Button("Build"))
                     {
                         SaveOptions(asset);
-                        AssetBuildController.StartBuildAsset(assetManifest, asset, false);
+                        AssetBuildController.StartBuildAsset(asset, false);
                     }
                     ImGui.PopStyleColor();
                 }
@@ -115,7 +119,7 @@ namespace Phoenix.AssetTool.Gui
                     if (ImGui.Button("Rebuild"))
                     {
                         SaveOptions(asset); 
-                        AssetBuildController.StartBuildAsset(assetManifest, asset, true);
+                        AssetBuildController.StartBuildAsset(asset, true);
                     }
                     ImGui.PopStyleColor();
                 }

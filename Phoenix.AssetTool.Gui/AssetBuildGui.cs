@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Numerics;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 
 
@@ -21,30 +22,8 @@ namespace Phoenix.AssetTool.Gui
         {
             if (ImGui.CollapsingHeader("build info", ImGuiTreeNodeFlags.DefaultOpen))
             {
-
-
-                //ImGui.Begin("Asset Build");
                 if (timeoutTimer < timeout)
                     timeoutTimer += deltaTime;
-
-                //if (!controller.IsBuilding && timeoutTimer > timeout)
-                //{
-                //    return;
-                //    //if (ImGui.Button("Build"))
-                //    //    controller.StartBuild(CurrentManifest, rebuild: false);
-
-                //    //ImGui.SameLine();
-
-                //    //if (ImGui.Button("Rebuild"))
-                //    //    controller.StartBuild(CurrentManifest, rebuild: true);
-                //}
-
-
-                //ImGui.Begin("Asset Build");
-
-                //if (ImGui.Button("Cancel"))
-                //    controller.Cancel();
-
 
                 var total = AssetBuildController.BuildList.Count;
                 var done = AssetBuildController.BuildList.Count(a =>
@@ -63,6 +42,8 @@ namespace Phoenix.AssetTool.Gui
 
                 foreach (var item in AssetBuildController.BuildList)
                 {
+                    if (item.Asset.Type == AssetType.ExtTexture)
+                        continue;
                     DrawBuildItem(item);
                 }
             }
@@ -88,29 +69,35 @@ namespace Phoenix.AssetTool.Gui
             ImGui.SameLine(ImGui.GetWindowWidth() - 150);
 
             bool showProgress = false;
+            var str = "";
             switch (item.State)
             {
                 case AssetBuildState.Pending:
-                    ImGui.Text("Pending...");
+                    str = "Pending...";
                     break;
                 case AssetBuildState.Building:
-                    ImGui.Text("Building...");
+                    str ="Building...";
                     showProgress = true;
                     break;
                 case AssetBuildState.Encoding:
-                    ImGui.Text("Encoding...");
+                    str ="Encoding...";
                     showProgress = true; 
                     break;
                 case AssetBuildState.Built:
-                    ImGui.Text("OK");
+                    str = "OK";
                     break;
                 case AssetBuildState.Failed:
-                    ImGui.Text("FAIL");
+                    str = "FAIL";
                     break;
                 case AssetBuildState.Skipped:
-                    ImGui.Text("Skipped");
+                    str = "Skipped";
                     break;
             }
+            if (item.State != AssetBuildState.Built &&
+                item.State != AssetBuildState.Skipped &&
+                item.State != AssetBuildState.Failed) 
+            str += $"{item.Step}/{item.MaxSteps}";
+            ImGui.Text(str);
             if (showProgress)
             {
                 ImGui.SetNextItemWidth(140);

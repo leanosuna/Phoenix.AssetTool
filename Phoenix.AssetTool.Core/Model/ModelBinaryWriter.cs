@@ -1,20 +1,31 @@
-﻿using Phoenix.Rendering.Geometry;
+﻿using Phoenix.AssetImport.Texture;
+using Phoenix.AssetTool.Core.Build;
+using Phoenix.AssetTool.Core.Texture;
+using Phoenix.Rendering.Geometry;
 using Silk.NET.Assimp;
+using Silk.NET.Core.Native;
+using System;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml.Linq;
+using AssimpTex = Silk.NET.Assimp.Texture;
 using AssimpMesh = Silk.NET.Assimp.Mesh;
 using AssimpPPS = Silk.NET.Assimp.PostProcessSteps;
-
+using Buffer = System.Buffer;
 namespace Phoenix.AssetTool.Core.Model
 {
     public sealed class ModelBinaryWriter
     {
+        private static List<Task> _tasks = new List<Task>();
+        private static ExtTexData[] textureData;
         public const AssimpPPS DefaultAssimpPost =
             AssimpPPS.Triangulate |
             AssimpPPS.GenerateSmoothNormals |
@@ -25,8 +36,12 @@ namespace Phoenix.AssetTool.Core.Model
             AssimpPPS.ImproveCacheLocality |
             AssimpPPS.SortByPrimitiveType |
             AssimpPPS.LimitBoneWeights;
-        public static unsafe void Build(ModelLoadOptions options, string sourcePath, string outputPath)
+
+
+        public static unsafe List<string> Build(AssetBuildStatus status, ModelLoadOptions options, 
+            string sourcePath, string outputPath)
         {
+            List<string> texNames = new List<string>();
 
             var assimp = Assimp.GetApi();
             var scene = assimp.ImportFile(sourcePath, options.AssimpFlags);
@@ -34,6 +49,8 @@ namespace Phoenix.AssetTool.Core.Model
             if (scene == null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
             {
                 var error = assimp.GetErrorStringS();
+                status.State = AssetBuildState.Failed;
+                status.Error = error;
                 throw new Exception(error);
             }
 
@@ -41,14 +58,105 @@ namespace Phoenix.AssetTool.Core.Model
 
             ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, parts);
 
+            status.Step = 0;
+            status.MaxSteps = 1;
+            if (options.ExtractTextures)
+                texNames = ExtractTextures(status, scene, outputPath);
+            
             WriteBinary(options, outputPath, parts);
+            Interlocked.Increment(ref status.Step);
 
-            ReadBinary(outputPath);
+            //ReadBinary(outputPath);
+            return texNames;
+        }
+        private static unsafe List<string> ExtractTextures(AssetBuildStatus status, Scene* scene, string modelOutputPath)
+        {
+            List<string> texNames = new List<string>();
+            int texCount = (int)scene->MNumTextures;
+            if (scene == null ||  texCount == 0)
+                return texNames;
+            status.MaxSteps += texCount;
+
+            var modelRoot = Path.GetDirectoryName(modelOutputPath)!;
+                        
+            textureData = new ExtTexData[texCount];
+            for (int i = 0; i < texCount; i++)
+            {
+                var tex = scene->MTextures[i];
+
+                string name = Marshal.PtrToStringAnsi((nint)tex->MFilename.Data) ?? $"*{i}";
+                name = Path.GetFileNameWithoutExtension(name);
+                texNames.Add(name);
+                
+                var outputPath = Path.Combine(modelRoot, $"{name}.bin");
+                var isNormal = name.Contains("Normal", StringComparison.InvariantCultureIgnoreCase);
+                var loadOptions = new TextureLoadOptions
+                {
+                    GenerateMipMaps = true,
+                    Format = isNormal? 
+                            AssetCompressionFormat.BC5: 
+                            AssetCompressionFormat.BC3,
+                    WrapS = TextureWrap.Repeat,
+                    WrapT = TextureWrap.Repeat,
+                    Min = TextureFilter.LinearMipmapLinear,
+                    Mag = TextureFilter.Linear
+                };
+
+
+                var sizeInBytes = 0;
+                var size = new Vector2(tex->MWidth, tex->MHeight);
+                var compressed = tex->MHeight == 0;
+                sizeInBytes = compressed? (int)tex->MWidth : (int)(size.X * size.Y * 4);
+                
+                textureData[i] = new ExtTexData()
+                {
+                    Name = name,
+                    OutputPath = outputPath,
+                    Options = loadOptions,
+                    PixelData = new byte[sizeInBytes],
+                    Size = size
+                };
+                Console.WriteLine($"{i} {sizeInBytes}");
+                fixed (byte* dst = textureData[i].PixelData)
+                {
+                    Console.WriteLine((int)dst);
+                    Buffer.MemoryCopy(tex->PcData, dst, sizeInBytes, sizeInBytes);
+                }
+                Console.WriteLine($"{i} {textureData[i].PixelData.Length}");
+
+            }
+            Console.WriteLine($"tasks");
+            for (int i = 0; i < texCount; i++)
+            {
+                int index = i;
+                var etd = textureData[index];
+
+                etd.BuildTask = etd.Compressed ?
+                    Task.Run(() => {
+                        Console.WriteLine($"{index} {etd.PixelData.Length}");
+                        TextureBinaryWriter.Build(etd.PixelData, status, etd.Options, etd.OutputPath);
+                        Interlocked.Increment(ref status.Step);
+
+                    }) :
+                    Task.Run(() => {
+                        Console.WriteLine($"{index} {etd.PixelData.Length}");
+                        TextureBinaryWriter.Build(etd.Size, etd.PixelData, status, etd.Options, etd.OutputPath);
+                        Interlocked.Increment(ref status.Step);
+
+                    });
+            }
+
+
+            return texNames;
+        }
+        static async Task AwaitTexBinaries(AssetBuildStatus state)
+        {
+            await Task.WhenAll(textureData.Select(t => t.BuildTask));
+            state.State = AssetBuildState.Built;
         }
 
         private static void WriteBinary(ModelLoadOptions options, string outputPath, List<ModelPart> parts)
         {
-            //Console.WriteLine("saving...");
             var dir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(dir))
                 Directory.CreateDirectory(dir);

@@ -10,7 +10,7 @@ namespace Phoenix.AssetTool.Core.Build
 {
     public static class AssetBuildPipeline
     {
-        public static async Task BuildAsync(AssetManifest manifest, IReadOnlyList<AssetBuildStatus> buildList, bool rebuild, CancellationToken token = default)
+        public static async Task BuildAsync(IReadOnlyList<AssetBuildStatus> buildList, bool rebuild, CancellationToken token = default)
         {
             var tasks = buildList.Select(status =>
                 Task.Run(() =>
@@ -21,7 +21,7 @@ namespace Phoenix.AssetTool.Core.Build
                     try
                     {
                         status.State = AssetBuildState.Building;
-                        var built = BuildAsset(manifest, status, rebuild);
+                        var built = BuildAsset(status, rebuild);
                         status.State = built? AssetBuildState.Built : AssetBuildState.Skipped;
                     }
                     catch (OperationCanceledException)
@@ -42,21 +42,20 @@ namespace Phoenix.AssetTool.Core.Build
         }
 
 
-        private static bool BuildAsset(AssetManifest manifest, AssetBuildStatus status, bool rebuild)
+        private static bool BuildAsset(AssetBuildStatus status, bool rebuild)
         {
             var asset = status.Asset;
             //Thread.Sleep((int)(new Random().NextDouble() * 5000));
             var sourcePath = Path.Combine(
-                manifest.BaseDirectory,
+                Manifest.BaseDirectory,
                 asset.RelativePath);
 
-
             var outputPath = Path.Combine(
-                manifest.BaseDirectory,
+                Manifest.BaseDirectory,
                 "ContentBin",
                 asset.RelativePath);
             outputPath = Path.ChangeExtension(outputPath, "bin");
-
+                
             var fileExists = File.Exists(outputPath);
             if (fileExists && !rebuild)
             {
@@ -68,7 +67,8 @@ namespace Phoenix.AssetTool.Core.Build
             {
                 case AssetType.Model:
                     var modelOptions = AssetOptions.OfModel(asset.RelativePath);
-                    ModelBinaryWriter.Build(modelOptions, sourcePath, outputPath);
+                    var texNames = ModelBinaryWriter.Build(status, modelOptions, sourcePath, outputPath);
+                    AddEmbTexToManifest(asset.RelativePath, texNames);
                     break;
 
                 case AssetType.Texture:
@@ -83,7 +83,23 @@ namespace Phoenix.AssetTool.Core.Build
             return true;
         }
         
+        private static void AddEmbTexToManifest(string assetPath, List<string> names)
+        {
+            var assetBaseDir = Path.GetDirectoryName(assetPath)!;
+            var texType = AssetType.ExtTexture;
+            
+            foreach(var name in names)
+            {
+                var texRelative = Path.Combine(assetBaseDir, $"{name}.bin").Replace("\\","/");
+                var entry = new AssetEntry { RelativePath = texRelative, Type = texType};
 
+                if (Manifest.Assets.Any(e => e.Type == texType && e.RelativePath == texRelative))
+                    return;
+                Manifest.Assets.Add(entry);
+            }
+
+            Manifest.Save();
+        }
     }
 }
 

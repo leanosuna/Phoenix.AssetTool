@@ -11,14 +11,14 @@ namespace Phoenix.AssetTool.Core.Build
 
         private static CancellationTokenSource? _cts;
 
-        public static void StartBuild(AssetManifest manifest, bool rebuild)
+        public static void StartBuild(bool rebuild, Action? onFinish = null)
         {
             if (IsBuilding)
                 return;
 
             BuildList.Clear();
 
-            foreach (var asset in manifest.Assets)
+            foreach (var asset in Manifest.Assets)
             {
                 BuildList.Add(new AssetBuildStatus
                 {
@@ -29,7 +29,7 @@ namespace Phoenix.AssetTool.Core.Build
             _cts = new CancellationTokenSource();
             IsBuilding = true;
 
-            _ = RunBuildAsync(manifest, rebuild, _cts.Token);
+            _ = RunBuildAsync(rebuild, _cts.Token, onFinish);
         }
 
         public static void Cancel()
@@ -38,14 +38,13 @@ namespace Phoenix.AssetTool.Core.Build
         }
 
         private static async Task RunBuildAsync(
-            AssetManifest manifest,
             bool rebuild,
-            CancellationToken token)
+            CancellationToken token,
+            Action? onFinish)
         {
             try
             {
                 await AssetBuildPipeline.BuildAsync(
-                    manifest,
                     BuildList,
                     rebuild,
                     token);
@@ -53,11 +52,12 @@ namespace Phoenix.AssetTool.Core.Build
             finally
             {
                 IsBuilding = false;
+                onFinish?.Invoke();
             }
         }
 
 
-        public static void StartBuildAsset(AssetManifest manifest, AssetEntry asset, bool rebuild)
+        public static void StartBuildAsset(AssetEntry asset, bool rebuild, Action? onFinish = null)
         {
             if (IsBuilding)
                 return;
@@ -73,7 +73,7 @@ namespace Phoenix.AssetTool.Core.Build
             _cts = new CancellationTokenSource();
             IsBuilding = true;
 
-            _ = RunBuildAsync(manifest, rebuild, _cts.Token);
+            _ = RunBuildAsync(rebuild, _cts.Token, onFinish);
         }
 
     }
