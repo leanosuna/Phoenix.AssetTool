@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Phoenix.AssetTool.Core.AssetBuildOptions;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Reflection;
@@ -14,122 +15,65 @@ namespace Phoenix.AssetTool.Core
         public static readonly Vector4 ColorGreen = new(0f, 1f, 0f, 1f);
         public static readonly Vector4 ColorRed = new(1f, 0f, 0f, 1f);
 
-        static string manifestAbsolutePath = "";
-        static string manifestRootDirectory = "";
-        static AssetManifest manifest = default!;
-        static AssetLoadOptions assetLoadOptions = default!;
+        public static AssetLoadOptions AssetLoadOptions = default!;
 
-        const string AssetLoadOptionsDefaultPath ="asset-load-options.json";
-        static string assetLoadOptionsAbsolutePath = "";
-
-        public static void SetManifest(AssetManifest assetManifest, string root)
-        {
-            manifest = assetManifest;
-            manifestAbsolutePath = root;
-            manifestRootDirectory = assetManifest.BaseDirectory;
-
-            LoadAssetOptions();
-        }
-        public static void SaveManifest()
-        {
-            JsonIOTools.Save(manifestAbsolutePath, manifest);
-        }
-        public static void SaveAssetOptions()
-        {
-            JsonIOTools.Save(assetLoadOptionsAbsolutePath, assetLoadOptions);
-        }
-
-        public static AssetLoadOptions LoadAssetOptions()
-        {
-            if (assetLoadOptions == null)
-            {
-                var optionsPath = Path.Combine(manifestRootDirectory, AssetLoadOptionsDefaultPath).Replace('\\', '/');
-                assetLoadOptionsAbsolutePath = optionsPath;
-                if (!File.Exists(optionsPath))
-                {
-                    //Console.WriteLine("created");
-                    JsonIOTools.Save(optionsPath, new AssetLoadOptions());
-                }
-
-                //Console.WriteLine("loaded");
-                JsonIOTools.Load(optionsPath, out assetLoadOptions);
-            }
-            //Console.WriteLine("accessed");
-            return assetLoadOptions;
-        }
-
+        
         public static void ToggleFile(string relative, bool save = true)
         {
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
             {
-                manifest.Assets.Remove(existing);
+                Manifest.Assets.Remove(existing);
                 return;
             }
 
-            var output = Path.ChangeExtension(
-                Path.Combine("ContentBin", relative),
-                ".bin"
-            ).Replace('\\', '/');
-
-            manifest.Assets.Add(new AssetEntry
+            
+            Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                OutputFilePath = output,
                 Type = GuessType(relative)
             });
 
-            if(save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+            if (save)
+                Manifest.Save();
         }
 
         public static void AddFile(string relative, bool save = true)
         {
-            
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
-            {
                 return;
-            }
-
-            var output = Path.ChangeExtension(
-                Path.Combine("ContentBin", relative),
-                ".bin"
-            ).Replace('\\', '/');
-
-            manifest.Assets.Add(new AssetEntry
+                        
+            Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                OutputFilePath = output,
                 Type = GuessType(relative)
             });
             if (save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+                Manifest.Save();
         }
         public static void RemoveFile(string relative, bool save = true)
         {
-            var existing = manifest.Assets
+            var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing == null)
-            {
                 return;
-            }
-            manifest.Assets.Remove(existing);
+            
+            Manifest.Assets.Remove(existing);
 
             if (save)
-                JsonIOTools.Save(manifestAbsolutePath, manifest);
+                Manifest.Save();
         }
         private static Dictionary<string, bool> _addedDirectories = new Dictionary<string, bool>();
-        public static void ToggleDirectory(
-            string absoluteDir)
+        public static void ToggleDirectory(string absoluteDir)
         {
             var files = Directory.EnumerateFiles(
                 absoluteDir,
@@ -144,13 +88,11 @@ namespace Phoenix.AssetTool.Core
 
             foreach (var file in files)
             {
-
-
                 if (GuessType(file) == AssetType.Unknown)
                     continue;
 
                 var relative = Path
-                    .GetRelativePath(manifestRootDirectory, file)
+                    .GetRelativePath(Manifest.BaseDirectory, file)
                     .Replace('\\', '/');
 
                 if (_addedDirectories[absoluteDir])
@@ -158,18 +100,19 @@ namespace Phoenix.AssetTool.Core
                 else
                     RemoveFile(relative, false);
             }
-            JsonIOTools.Save(manifestAbsolutePath, manifest);
+            Manifest.Save();
         }
 
-        public static (bool tracked, bool built) VerifyAsset(AssetEntry asset)
+        public static (bool tracked, bool built) VerifyAsset(AssetEntry? asset)
         {
             if(asset == null)
                 return (false, false);
 
             var builtPath = Path.Combine(
-                manifest.BaseDirectory,
-                asset.OutputFilePath
-            );
+                Manifest.BaseDirectory,
+                "ContentBin",
+                asset.RelativePath);
+            builtPath = Path.ChangeExtension(builtPath, "bin");
 
             return (true, File.Exists(builtPath));
         }

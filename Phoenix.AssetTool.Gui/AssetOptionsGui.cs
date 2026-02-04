@@ -1,10 +1,15 @@
-﻿using ImGuiNET;
+﻿using BCnEncoder.Shared;
+using ImGuiNET;
+using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core;
+using Phoenix.AssetTool.Core.AssetBuildOptions;
 using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using Silk.NET.Assimp;
+using Silk.NET.Core.Native;
+using SixLabors.ImageSharp.ColorSpaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,8 +27,7 @@ namespace Phoenix.AssetTool.Gui
 
         static AssetManifest assetManifest = default!;
 
-        static AssetLoadOptions assetLoadOptions;
-
+        
         static ModelLoadOptions modelOptions;
         static TextureLoadOptions textureOptions;
         static ShaderLoadOptions shaderOptions;
@@ -33,12 +37,15 @@ namespace Phoenix.AssetTool.Gui
         {
             assetManifest = manifest;
         }
-        public static void Draw(AssetEntry asset, AssetType type, string path)
+        public static void Draw((AssetEntry? asset, AssetType type, string path) sfo)
         {
+            var asset = sfo.asset;
+            var type = sfo.type;
+            var path = sfo.path;
+
             if (path == "")
                 return;
-            assetLoadOptions = FileTools.LoadAssetOptions();
-
+            
             DrawFileHeader(asset, type, path);
             
             switch (type)
@@ -48,10 +55,10 @@ namespace Phoenix.AssetTool.Gui
                     DrawModelOptions(asset,path);
                     break;
                 case AssetType.Texture:
-                    DrawTextureOptions();
+                    DrawTextureOptions(asset, path);
                     break;
                 case AssetType.Shader:
-                    DrawShaderOptions();
+                    DrawShaderOptions(asset, path);
                     break;
             }
         }
@@ -89,18 +96,9 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.SameLine();
                 if (ImGui.Button("Save options"))
                 {
-                    var assetOptions = FileTools.LoadAssetOptions();
-
-                    switch(type)
-                    {
-                        case AssetType.Model:
-                            assetOptions.Models[asset.RelativePath] = modelOptions;
-                            break;
-
-                    }
-                    FileTools.SaveAssetOptions();
                     
-
+                    
+                    
                 }
 
 
@@ -110,7 +108,8 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
                     if (ImGui.Button("Build"))
                     {
-                        AssetBuildController.StartBuildAsset(assetManifest, asset, false);
+                        SaveOptions(asset);
+                        AssetBuildController.StartBuildAsset(asset, false);
                     }
                     ImGui.PopStyleColor();
                 }
@@ -119,21 +118,35 @@ namespace Phoenix.AssetTool.Gui
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
                     if (ImGui.Button("Rebuild"))
                     {
-                        AssetBuildController.StartBuildAsset(assetManifest, asset, true);
+                        SaveOptions(asset); 
+                        AssetBuildController.StartBuildAsset(asset, true);
                     }
                     ImGui.PopStyleColor();
                 }
             }
             ImGui.NewLine();
         }
+        static void SaveOptions(AssetEntry asset)
+        {
+            switch (asset.Type)
+            {
+                case AssetType.Model:
+                    AssetOptions.Set(asset.RelativePath, modelOptions);
+                    break;
+                case AssetType.Texture:
+                    AssetOptions.Set(asset.RelativePath, textureOptions);
+                    break;
+                case AssetType.Shader:
+                    AssetOptions.Set(asset.RelativePath, shaderOptions);
+                    break;
+
+            }
+        }
+
+
         public static void DrawModelOptions(AssetEntry asset, string path)
         {
-            if (!assetLoadOptions.Models.TryGetValue(path, out modelOptions))
-            {
-                modelOptions = new ModelLoadOptions();
-
-                assetLoadOptions.Models[path] = modelOptions;
-            }
+            modelOptions = AssetOptions.OfModel(path);
             var options = modelOptions;
 
             var flags = options.AssimpFlags;
@@ -159,6 +172,7 @@ namespace Phoenix.AssetTool.Gui
                         flags = (uint)en;
                     }
                 }
+                //TODO: check missing
                 ImGui.CheckboxFlags("Generate UV", ref flags, (int)PostProcessSteps.GenerateUVCoords);
 
                 ImGui.CheckboxFlags("Join Vertices", ref flags, (int)PostProcessSteps.JoinIdenticalVertices);
@@ -205,7 +219,7 @@ namespace Phoenix.AssetTool.Gui
                 {
                     foreach(var anim in options.AnimationFiles)
                     {
-                        var name = Path.GetFileName(anim);
+                        var name = Path.GetFileNameWithoutExtension(anim);
                         ImGui.Text(name);
                     }
                 }
@@ -214,11 +228,52 @@ namespace Phoenix.AssetTool.Gui
 
             
         }
-        public static void DrawTextureOptions()
+        public static void DrawTextureOptions(AssetEntry asset, string path)
         {
             ImGui.Text($"TEXTURE LOAD OPTIONS");
+
+            textureOptions = AssetOptions.OfTexture(path);
+            
+            var options = textureOptions;
+            var mipEnabled = options.GenerateMipMaps;
+
+            var current = (int)options.Format;
+
+            var compList = options.Format.Strings();
+
+            ImGui.Checkbox("Generate mipmaps", ref mipEnabled);            
+            options.GenerateMipMaps = mipEnabled;
+
+            ImGui.Text("Compression Format");
+            if (ImGui.ListBox("##1", ref current, compList, compList.Length))
+                options.Format = (AssetCompressionFormat)current;
+
+            var wrapList = options.WrapS.Strings();
+                        
+            int current2 = options.WrapS.Index();
+            ImGui.Text("Wrap Horizontal");
+            if (ImGui.ListBox("##2", ref current2, wrapList, wrapList.Length))
+                options.WrapS = options.WrapS.At(current2);
+            
+            var current3 = options.WrapT.Index();
+            ImGui.Text("Wrap Vertical");
+            if (ImGui.ListBox("##3", ref current3, wrapList, wrapList.Length))
+                options.WrapT = options.WrapT.At(current3);
+
+            var filterList = options.Min.Strings();
+
+            var current4 = options.Min.Index();
+            ImGui.Text("Min Filter");
+            if (ImGui.ListBox("##4", ref current4, filterList, filterList.Length))
+                options.Min = options.Min.At(current4);
+
+            var current5 = options.Mag.Index();
+            ImGui.Text("Mag Filter"); 
+            if (ImGui.ListBox("##5", ref current5, filterList, 2))
+                options.Mag = options.Mag.At(current5);
+
         }
-        public static void DrawShaderOptions()
+        public static void DrawShaderOptions(AssetEntry asset, string path)
         {
             ImGui.Text($"SHADER LOAD OPTIONS");
         }

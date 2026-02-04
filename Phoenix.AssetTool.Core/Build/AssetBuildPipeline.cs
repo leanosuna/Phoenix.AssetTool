@@ -1,4 +1,5 @@
-﻿using Phoenix.AssetTool.Core.Model;
+﻿using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using System;
@@ -9,7 +10,7 @@ namespace Phoenix.AssetTool.Core.Build
 {
     public static class AssetBuildPipeline
     {
-        public static async Task BuildAsync(AssetManifest manifest, IReadOnlyList<AssetBuildStatus> buildList, bool rebuild, CancellationToken token = default)
+        public static async Task BuildAsync(IReadOnlyList<AssetBuildStatus> buildList, bool rebuild, CancellationToken token = default)
         {
             var tasks = buildList.Select(status =>
                 Task.Run(() =>
@@ -20,7 +21,7 @@ namespace Phoenix.AssetTool.Core.Build
                     try
                     {
                         status.State = AssetBuildState.Building;
-                        var built = BuildAsset(manifest, status.Asset, rebuild);
+                        var built = BuildAsset(status, rebuild);
                         status.State = built? AssetBuildState.Built : AssetBuildState.Skipped;
                     }
                     catch (OperationCanceledException)
@@ -31,24 +32,30 @@ namespace Phoenix.AssetTool.Core.Build
                     {
                         status.State = AssetBuildState.Failed;
                         status.Error = ex.Message;
+                        Console.WriteLine($"{Path.GetFileName(status.Asset.RelativePath)}: {status.Error}");
                     }
                 }, token)
             ).ToArray();
 
             await Task.WhenAll(tasks);
+            AssetOptions.Save();
         }
 
-        private static bool BuildAsset(AssetManifest manifest, AssetEntry asset, bool rebuild)
-        {
 
+        private static bool BuildAsset(AssetBuildStatus status, bool rebuild)
+        {
+            var asset = status.Asset;
             //Thread.Sleep((int)(new Random().NextDouble() * 5000));
             var sourcePath = Path.Combine(
-                manifest.BaseDirectory,
+                Manifest.BaseDirectory,
                 asset.RelativePath);
 
             var outputPath = Path.Combine(
-                manifest.BaseDirectory,
-                asset.OutputFilePath);
+                Manifest.BaseDirectory,
+                "ContentBin",
+                asset.RelativePath);
+            outputPath = Path.ChangeExtension(outputPath, "bin");
+                
             var fileExists = File.Exists(outputPath);
             if (fileExists && !rebuild)
             {
@@ -59,53 +66,39 @@ namespace Phoenix.AssetTool.Core.Build
             switch (asset.Type)
             {
                 case AssetType.Model:
-                    var modelOptions = GetModelLoadOptions(asset.RelativePath);
-                    ModelBinaryWriter.Build(modelOptions, sourcePath, outputPath);
+                    var modelOptions = AssetOptions.OfModel(asset.RelativePath);
+                    var texNames = ModelBinaryWriter.Build(status, modelOptions, sourcePath, outputPath);
+                    AddEmbTexToManifest(asset.RelativePath, texNames);
                     break;
 
                 case AssetType.Texture:
-                    var texOptions = GetTextureLoadOptions(asset.RelativePath);
+                    var texOptions = AssetOptions.OfTexture(asset.RelativePath);
+                    TextureBinaryWriter.Build(status, texOptions, sourcePath, outputPath);
                     break;
 
                 case AssetType.Shader:
-                    var shOptions = GetShaderLoadOptions(asset.RelativePath);
+                    var shOptions = AssetOptions.OfShader(asset.RelativePath);
                     break;
             }
             return true;
         }
+        
+        private static void AddEmbTexToManifest(string assetPath, List<string> names)
+        {
+            var assetBaseDir = Path.GetDirectoryName(assetPath)!;
+            var texType = AssetType.ExtTexture;
+            
+            foreach(var name in names)
+            {
+                var texRelative = Path.Combine(assetBaseDir, $"{name}.bin").Replace("\\","/");
+                var entry = new AssetEntry { RelativePath = texRelative, Type = texType};
 
-        public static ModelLoadOptions GetModelLoadOptions(string path)
-        {
-            var assetLoadOptions = FileTools.LoadAssetOptions();
-            if (!assetLoadOptions.Models.TryGetValue(path, out var options))
-            {
-                options = new ModelLoadOptions();
-                assetLoadOptions.Models[path] = options;
-                FileTools.SaveAssetOptions();
+                if (Manifest.Assets.Any(e => e.Type == texType && e.RelativePath == texRelative))
+                    return;
+                Manifest.Assets.Add(entry);
             }
-            return options;
-        }
-        public static TextureLoadOptions GetTextureLoadOptions(string path)
-        {
-            var assetLoadOptions = FileTools.LoadAssetOptions();
-            if (!assetLoadOptions.Textures.TryGetValue(path, out var options))
-            {
-                options = new TextureLoadOptions();
-                assetLoadOptions.Textures[path] = options;
-                FileTools.SaveAssetOptions();
-            }
-            return options;
-        }
-        public static ShaderLoadOptions GetShaderLoadOptions(string path)
-        {
-            var assetLoadOptions = FileTools.LoadAssetOptions();
-            if (!assetLoadOptions.Shaders.TryGetValue(path, out var options))
-            {
-                options = new ShaderLoadOptions();
-                assetLoadOptions.Shaders[path] = options;
-                FileTools.SaveAssetOptions();
-            }
-            return options;
+
+            Manifest.Save();
         }
     }
 }

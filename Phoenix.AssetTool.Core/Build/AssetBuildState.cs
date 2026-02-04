@@ -8,6 +8,7 @@ namespace Phoenix.AssetTool.Core.Build
     {
         Pending,
         Building,
+        Encoding,
         Built,
         Skipped,
         Failed

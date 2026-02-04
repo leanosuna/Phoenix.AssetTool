@@ -1,6 +1,7 @@
 ﻿using ImGuiNET;
 using NativeFileDialogNET;
 using Phoenix.AssetTool.Core;
+using Phoenix.AssetTool.Core.AssetBuildOptions;
 using Phoenix.AssetTool.Core.Model;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -8,6 +9,8 @@ using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Drawing;
 using System.IO;
 using System.Numerics;
@@ -58,9 +61,7 @@ namespace Phoenix.AssetTool.Gui
             GL = GL.GetApi(Window);
             Window.WindowState = WindowState.Maximized;
             Window.Center();
-            //var max = Window.Monitor.Bounds.Max;
-            //Window.Position = Vector2D<int>.Zero;
-            //Window.Size = max;
+
 
             InputManager = new InputManager(Window);
             var inputContext = InputManager.GetInputContext();
@@ -68,13 +69,7 @@ namespace Phoenix.AssetTool.Gui
 
             LoadDefaultFont();
 
-            //manifestLoaded = JsonIOTools.Load(DefaultManifestName, out assetManifest);
-            //if (manifestLoaded)
-            //{
-            //    assetManifestPath = DefaultManifestName;
-            //    AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
-
-            //}
+            Manifest.RegisterNotifyAction(() => { AssetOptions.Init(); });
         }
         static int mouseWheelVal = 0 ;
         static bool showDemo = false;
@@ -85,6 +80,8 @@ namespace Phoenix.AssetTool.Gui
                 Window.Close();
             if (InputManager.KeyDownOnce(Key.F12))
                 showDemo = !showDemo;
+
+
 
             var diff = InputManager.MouseWheelValue - mouseWheelVal;
             mouseWheelVal = InputManager.MouseWheelValue;
@@ -105,7 +102,8 @@ namespace Phoenix.AssetTool.Gui
                 }
             }
         }
-        static (bool selected, string dir, string path) res = (false, "", "");
+        //static (bool selected, string dir, string path) res = (false, "", "");
+        static (bool selected, bool existed, string path) res = (false, false, "");
         static int currentFontSize = 20;
         private static void Render(double deltaTime)
         {
@@ -138,135 +136,73 @@ namespace Phoenix.AssetTool.Gui
             }
             ImGui.NewLine();
 
-            if (!manifestLoaded)
+            if (!Manifest.Loaded)
             {
-                if (ImGui.Button("Create Manifest file in a folder..."))
+                if (ImGui.Button("Create Manifest file in a folder... (C)") ||
+                    InputManager.KeyDownOnce(Key.C))
                 {
-                    res = OpenManifestFolderPicker();
+                    res = Manifest.PickFolderToCreate();
 
                     if(res.selected)
                     {
-                        if (File.Exists(res.path))
+                        if(res.existed)
                             ImGui.OpenPopup("replace-manifest");
-                        else
-                        {
-                            var am = new AssetManifest { BaseDirectory = res.dir};
-                            JsonIOTools.Save(res.path, am);
-                            assetManifest = am;
-                            manifestLoaded = true;
-                            assetManifestPath = res.dir;
-                            AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
-                        }
-
+                        
                     }
+                }
+                ImGui.Text("or");
+                if (ImGui.Button("Select Manifest file... (S)") ||
+                    InputManager.KeyDownOnce(Key.S))
+                {
+                    Manifest.FilePicker();
                 }
 
                 if (ImGui.BeginPopup("replace-manifest", ImGuiWindowFlags.NoMove))
                 {
-                    ImGui.Text("Asset manifest found in this directory.");
-                    if (ImGui.Button("Open existing manifest"))
-                    {
-                        if(JsonIOTools.Load(res.dir, out AssetManifest am))
-                        {
-                            assetManifest = am;
-                            manifestLoaded = true;
-                            assetManifestPath = res.dir;
-                            AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error loading manifest");
-                        }
-
-                        ImGui.CloseCurrentPopup();
-                    }
-                    ImGui.SameLine();
-                    if (ImGui.Button("Replace existing manifest"))
-                    {
-                        File.Delete(res.path);
-
-                        var am = new AssetManifest();
-                        JsonIOTools.Save(res.path, am);
-                        assetManifest = am;
-                        manifestLoaded = true;
-                        assetManifestPath = res.dir;
-                        AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
-
-                        ImGui.CloseCurrentPopup();
-                    }
-
+                    ImGui.TextColored(new Vector4(0.5f,0,0,1),"Asset manifest found in this directory.");
+                    if (ImGui.Button("Open existing manifest (E)") || InputManager.KeyDownOnce(Key.E)) //TODO: add colors
+                        Manifest.Load(res.path);
+                    
+                    if (ImGui.Button("Clear existing manifest (R)") || InputManager.KeyDownOnce(Key.R))
+                        Manifest.Clear(res.path);
+                    
                     ImGui.EndPopup();
                 }
-
-                ImGui.Text("or");
-                if (ImGui.Button("Select Manifest file..."))
-                {
-                    OpenManifestFilePicker();
-                }
+                
             }
             else
             {
+
                 AssetBrowserGui.DrawDirFileTree((float)deltaTime);
-                
+
                 ImGui.SetNextWindowPos(new Vector2(WindowWidth / 2, 0));
                 ImGui.SetNextWindowSize(new Vector2(WindowWidth / 2, WindowHeight));
                 ImGui.Begin("asset options ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize);
-                //AssetBrowserGui.DrawOptions();
-                var sfo = AssetBrowserGui.SelectedFileOptions;
-                AssetOptionsGui.Draw(sfo.asset, sfo.type, sfo.path);
+
+                AssetOptionsGui.Draw(AssetBrowserGui.SelectedFileOptions);
 
             }
+
+
 
 
             _controller.Render();
         }
 
-        public static void BuildAsset(AssetEntry asset, bool rebuild = false)
-        {
-            //AssetBuildPipeline.BuildAsset(assetManifest, asset, rebuild);
-        }
-
-
-        static (bool selected, string dir, string path)OpenManifestFolderPicker()
-        {
-            using var dlg = new NativeFileDialog()
-            .SelectFolder();
-
-            DialogResult result = dlg.Open(out string[]? folders, defaultPath: Environment.CurrentDirectory);
-            if (result == DialogResult.Okay && folders != null && folders.Length > 0)
-            {
-                var dir = folders[0];
-                var path = Path.Combine(dir, DefaultManifestName).Replace('\\', '/');
-
-                return (true, dir, path);
-
-            }
-            return (false, "", "");
-        }
-
-
-
-
-        static void OpenManifestFilePicker()
+        public static bool OpenAssetFilePicker(out string[] filesOut)
         {
             using var dlg = new NativeFileDialog()
             .SelectFile()
-            .AddFilter("manifest files", "json");
-
+            .AddFilter("Asset files", "*.*")
+            .AllowMultiple();
             DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
             if (result == DialogResult.Okay && files != null && files.Length > 0)
             {
-                var path = files[0];
-                manifestLoaded = JsonIOTools.Load(path, out assetManifest);
-                if (manifestLoaded)
-                {
-                    assetManifestPath = path.Replace('\\', '/');
-                    AssetBrowserGui.SetManifest(assetManifest, assetManifestPath);
-                }
+                filesOut = files;
+                return true;
             }
-            else
-            {
-            }
+            filesOut = [];
+            return false;
 
         }
         internal static void OpenAnimationFilePicker(ModelLoadOptions options)
@@ -364,4 +300,5 @@ namespace Phoenix.AssetTool.Gui
 
         
     }
+
 }
