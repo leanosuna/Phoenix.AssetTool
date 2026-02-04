@@ -13,8 +13,7 @@ namespace Phoenix.AssetTool.Core.Texture
         public static void Build(byte[] compressed, AssetBuildStatus status, 
             TextureLoadOptions options, string outputPath)
         {
-            Console.WriteLine($"before internal {compressed.Length}");
-
+            
             using Image<Rgba32> image = Image.Load<Rgba32>(compressed);
 
             (Vector2 size, byte[] buffer) data = ImageToBytes(image);
@@ -46,7 +45,6 @@ namespace Phoenix.AssetTool.Core.Texture
             var h = (int)size.Y;
 
             var format = options.Format.ConvertFormat();
-            Console.WriteLine($"format {format} pixelData len {pixelData.Length}");
             var encoder = new BcEncoder
             {
                 OutputOptions =
@@ -111,7 +109,6 @@ namespace Phoenix.AssetTool.Core.Texture
             int h = image.Height;
 
             (Vector2 s, byte[] d) = (new Vector2(w, h), new byte[w * h * 4]);
-            Console.WriteLine($"itb {w} {h} {d.Length}");
             image.CopyPixelDataTo(d);
 
             return (s, d);

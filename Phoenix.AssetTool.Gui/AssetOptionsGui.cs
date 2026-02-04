@@ -172,6 +172,7 @@ namespace Phoenix.AssetTool.Gui
                         flags = (uint)en;
                     }
                 }
+                //TODO: check missing
                 ImGui.CheckboxFlags("Generate UV", ref flags, (int)PostProcessSteps.GenerateUVCoords);
 
                 ImGui.CheckboxFlags("Join Vertices", ref flags, (int)PostProcessSteps.JoinIdenticalVertices);
@@ -218,7 +219,7 @@ namespace Phoenix.AssetTool.Gui
                 {
                     foreach(var anim in options.AnimationFiles)
                     {
-                        var name = Path.GetFileName(anim);
+                        var name = Path.GetFileNameWithoutExtension(anim);
                         ImGui.Text(name);
                     }
                 }

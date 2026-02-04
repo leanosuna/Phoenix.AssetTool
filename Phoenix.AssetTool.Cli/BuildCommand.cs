@@ -22,7 +22,7 @@ namespace AssetTool.Cli
                 Console.WriteLine("Asset manifest not found.");
                 return;
             }
-            AssetBuildController.StartBuild(manifest, false);
+            AssetBuildController.StartBuild(false);
             
             Console.WriteLine("Build finished.");
         }

@@ -20,12 +20,15 @@ using AssimpTex = Silk.NET.Assimp.Texture;
 using AssimpMesh = Silk.NET.Assimp.Mesh;
 using AssimpPPS = Silk.NET.Assimp.PostProcessSteps;
 using Buffer = System.Buffer;
+using Phoenix.AssetTool.Core.Model.Animation;
 namespace Phoenix.AssetTool.Core.Model
 {
     public sealed class ModelBinaryWriter
     {
+        //TODO: this is isnt async safe
         private static List<Task> _tasks = new List<Task>();
         private static ExtTexData[] textureData;
+        private static Dictionary<string, BoneInfo> BoneInfoMap = new Dictionary<string, BoneInfo>();
         public const AssimpPPS DefaultAssimpPost =
             AssimpPPS.Triangulate |
             AssimpPPS.GenerateSmoothNormals |
@@ -55,17 +58,23 @@ namespace Phoenix.AssetTool.Core.Model
             }
 
             var parts = new List<ModelPart>();
-
-            ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, parts);
+            BoneInfoMap.Clear();
+            ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, parts, options);
 
             status.Step = 0;
             status.MaxSteps = 1;
             if (options.ExtractTextures)
                 texNames = ExtractTextures(status, scene, outputPath);
             
+            if(options.IsAnimated)
+            {
+                AnimationLoader.ProcessAnimations(options.AnimationFiles, BoneInfoMap);
+            }
+
+
             WriteBinary(options, outputPath, parts);
             Interlocked.Increment(ref status.Step);
-
+            _ = AwaitTexBinaries(status);
             //ReadBinary(outputPath);
             return texNames;
         }
@@ -116,16 +125,12 @@ namespace Phoenix.AssetTool.Core.Model
                     PixelData = new byte[sizeInBytes],
                     Size = size
                 };
-                Console.WriteLine($"{i} {sizeInBytes}");
                 fixed (byte* dst = textureData[i].PixelData)
                 {
-                    Console.WriteLine((int)dst);
                     Buffer.MemoryCopy(tex->PcData, dst, sizeInBytes, sizeInBytes);
                 }
-                Console.WriteLine($"{i} {textureData[i].PixelData.Length}");
-
+                
             }
-            Console.WriteLine($"tasks");
             for (int i = 0; i < texCount; i++)
             {
                 int index = i;
@@ -133,13 +138,11 @@ namespace Phoenix.AssetTool.Core.Model
 
                 etd.BuildTask = etd.Compressed ?
                     Task.Run(() => {
-                        Console.WriteLine($"{index} {etd.PixelData.Length}");
                         TextureBinaryWriter.Build(etd.PixelData, status, etd.Options, etd.OutputPath);
                         Interlocked.Increment(ref status.Step);
 
                     }) :
                     Task.Run(() => {
-                        Console.WriteLine($"{index} {etd.PixelData.Length}");
                         TextureBinaryWriter.Build(etd.Size, etd.PixelData, status, etd.Options, etd.OutputPath);
                         Interlocked.Increment(ref status.Step);
 
@@ -284,7 +287,9 @@ namespace Phoenix.AssetTool.Core.Model
             return array;
         }
 
-        private unsafe static void ProcessNode(Node* node, Scene* scene, Matrix4x4 parentTransform, List<ModelPart> parts)
+        private unsafe static void ProcessNode(Node* node, Scene* scene, 
+            Matrix4x4 parentTransform, List<ModelPart> parts,
+            ModelLoadOptions options)
         {
             var meshes = new List<Mesh>();
 
@@ -297,7 +302,7 @@ namespace Phoenix.AssetTool.Core.Model
             {
                 var assimpMesh = scene->MMeshes[node->MMeshes[i]];
 
-                var mesh = ProcessMesh(assimpMesh, scene, relativeTransform);
+                var mesh = ProcessMesh(assimpMesh, scene, relativeTransform, options);
                 mesh.Name = assimpMesh->MName;
                 mesh.AABB = assimpMesh->MAABB;
                 mesh.Transform = relativeTransform;
@@ -315,13 +320,14 @@ namespace Phoenix.AssetTool.Core.Model
 
             for (var i = 0; i < node->MNumChildren; i++)
             {
-                ProcessNode(node->MChildren[i], scene, currentTransform, parts);
+                ProcessNode(node->MChildren[i], scene, currentTransform, parts, options);
             }
         }
 
 
         
-        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Scene* scene, Matrix4x4 relativeTransform)
+        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Scene* scene, 
+            Matrix4x4 relativeTransform, ModelLoadOptions options)
         {
             // data to fill
             List<Vertex> vertices = new List<Vertex>();
@@ -375,10 +381,11 @@ namespace Phoenix.AssetTool.Core.Model
                     indices.Add(face.MIndices[j]);
             }
 
+            if(options.IsAnimated)
+                ExtractBoneWeights(vertices, mesh, scene);
 
             //if (_meshAttributes.HasFlag(MeshAttributes.boneIds) && _meshAttributes.HasFlag(MeshAttributes.boneWeights))
             //{
-            //    ExtractBoneWeights(vertices, mesh, scene);
             //}
 
 
@@ -390,6 +397,86 @@ namespace Phoenix.AssetTool.Core.Model
                 name = mesh->MName;
             return new Mesh(vertices, indices, relativeTransform, name, aabb, materialIndex);
         }
+
+        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, Scene* scene)
+        {
+            // Temporary dictionary to collect all influences per vertex
+            var vertexInfluences = new Dictionary<int, List<(int BoneId, float Weight)>>();
+
+            for (int boneID = 0; boneID < mesh->MNumBones; boneID++)
+            {
+                string boneName = mesh->MBones[boneID]->MName;
+
+
+                var offset = mesh->MBones[boneID]->MOffsetMatrix;
+                var weights = mesh->MBones[boneID]->MWeights;
+                var numWeights = mesh->MBones[boneID]->MNumWeights;
+
+                int trueBoneId;
+                if (BoneInfoMap.TryGetValue(boneName, out var boneInfo))
+                {
+                    trueBoneId = boneInfo.ID;
+                }
+                else
+                {
+                    trueBoneId = BoneInfoMap.Count;
+                    BoneInfoMap.Add(boneName, new BoneInfo(trueBoneId, offset));
+
+                }
+
+                for (int wi = 0; wi < numWeights; wi++)
+                {
+                    int vertexId = (int)weights[wi].MVertexId;
+                    float weight = weights[wi].MWeight;
+                    if (!vertexInfluences.TryGetValue(vertexId, out var list))
+                    {
+                        list = new List<(int, float)>();
+                        vertexInfluences[vertexId] = list;
+                    }
+
+                    list.Add((trueBoneId, weight));
+                }
+            }
+
+            foreach (var kvp in vertexInfluences)
+            {
+                int vertexId = kvp.Key;
+                var influences = kvp.Value;
+
+                List<(int BoneId, float Weight)> topInfluences;
+
+                if (influences.Count > Vertex.MAX_BONE_INFLUENCE)
+                {
+                    influences.Sort((a, b) => b.Weight.CompareTo(a.Weight));
+                    topInfluences = influences.Take(Vertex.MAX_BONE_INFLUENCE).ToList();
+
+                    float total = topInfluences.Sum(x => x.Weight);
+                    if (total > 0)
+                    {
+                        for (int i = 0; i < topInfluences.Count; i++)
+                            topInfluences[i] = (topInfluences[i].BoneId, topInfluences[i].Weight / total);
+                    }
+
+                }
+                else
+                {
+                    topInfluences = influences;
+                    for (int i = topInfluences.Count; i < Vertex.MAX_BONE_INFLUENCE; i++)
+                    {
+                        topInfluences.Add((-1, 0.0f));
+                    }
+                }
+
+                var vertex = vertices[vertexId];
+                vertex.BoneIds =
+                    new Vector4(topInfluences[0].BoneId, topInfluences[1].BoneId, topInfluences[2].BoneId, topInfluences[3].BoneId);
+                vertex.Weights =
+                    new Vector4(topInfluences[0].Weight, topInfluences[1].Weight, topInfluences[2].Weight, topInfluences[3].Weight);
+                vertices[vertexId] = vertex;
+            }
+        }
+
+
 
     }
 
