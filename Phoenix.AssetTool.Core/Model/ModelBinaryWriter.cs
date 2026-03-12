@@ -1,5 +1,6 @@
 ﻿using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core.Build;
+using Phoenix.AssetTool.Core.Model.Animation;
 using Phoenix.AssetTool.Core.Texture;
 using Phoenix.Rendering.Geometry;
 using Silk.NET.Assimp;
@@ -8,6 +9,7 @@ using System;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.IO;
 using System.Net.NetworkInformation;
@@ -16,19 +18,14 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using AssimpTex = Silk.NET.Assimp.Texture;
 using AssimpMesh = Silk.NET.Assimp.Mesh;
 using AssimpPPS = Silk.NET.Assimp.PostProcessSteps;
+using AssimpTex = Silk.NET.Assimp.Texture;
 using Buffer = System.Buffer;
-using Phoenix.AssetTool.Core.Model.Animation;
 namespace Phoenix.AssetTool.Core.Model
 {
     public sealed class ModelBinaryWriter
     {
-        //TODO: this is isnt async safe
-        private static List<Task> _tasks = new List<Task>();
-        private static ExtTexData[] textureData;
-        private static Dictionary<string, BoneInfo> BoneInfoMap = new Dictionary<string, BoneInfo>();
         public const AssimpPPS DefaultAssimpPost =
             AssimpPPS.Triangulate |
             AssimpPPS.GenerateSmoothNormals |
@@ -57,38 +54,43 @@ namespace Phoenix.AssetTool.Core.Model
                 throw new Exception(error);
             }
 
-            var parts = new List<ModelPart>();
-            BoneInfoMap.Clear();
-            ProcessNode(scene->MRootNode, scene, Matrix4x4.Identity, parts, options);
+            var modelProcessData = new ModelProcessData { Status = status, Scene = scene, LoadOptions = options };
+
+            ProcessNode(scene->MRootNode, Matrix4x4.Identity, modelProcessData);
 
             status.Step = 0;
             status.MaxSteps = 1;
+
             if (options.ExtractTextures)
-                texNames = ExtractTextures(status, scene, outputPath);
+                texNames = ExtractTextures(outputPath, modelProcessData);
             
             if(options.IsAnimated)
             {
-                AnimationLoader.ProcessAnimations(options.AnimationFiles, BoneInfoMap);
+                var (animations, data) = AnimationLoader.ProcessAnimations(options.AnimationFiles, modelProcessData.BoneInfoMap);
+                modelProcessData.Animations = animations;
+                modelProcessData.AnimationLoadData = data;
             }
 
 
-            WriteBinary(options, outputPath, parts);
+            WriteBinary(outputPath, modelProcessData);
             Interlocked.Increment(ref status.Step);
-            _ = AwaitTexBinaries(status);
+            _ = AwaitTexBinaries(modelProcessData);
             //ReadBinary(outputPath);
             return texNames;
         }
-        private static unsafe List<string> ExtractTextures(AssetBuildStatus status, Scene* scene, string modelOutputPath)
+        private static unsafe List<string> ExtractTextures(string modelOutputPath, ModelProcessData modelProcessData)
         {
             List<string> texNames = new List<string>();
+            var scene = modelProcessData.Scene;
             int texCount = (int)scene->MNumTextures;
             if (scene == null ||  texCount == 0)
                 return texNames;
-            status.MaxSteps += texCount;
+
+            modelProcessData.Status.MaxSteps += texCount;
 
             var modelRoot = Path.GetDirectoryName(modelOutputPath)!;
-                        
-            textureData = new ExtTexData[texCount];
+
+            modelProcessData.textureData = new ExtTexData[texCount];
             for (int i = 0; i < texCount; i++)
             {
                 var tex = scene->MTextures[i];
@@ -116,8 +118,8 @@ namespace Phoenix.AssetTool.Core.Model
                 var size = new Vector2(tex->MWidth, tex->MHeight);
                 var compressed = tex->MHeight == 0;
                 sizeInBytes = compressed? (int)tex->MWidth : (int)(size.X * size.Y * 4);
-                
-                textureData[i] = new ExtTexData()
+
+                modelProcessData.textureData[i] = new ExtTexData()
                 {
                     Name = name,
                     OutputPath = outputPath,
@@ -125,7 +127,7 @@ namespace Phoenix.AssetTool.Core.Model
                     PixelData = new byte[sizeInBytes],
                     Size = size
                 };
-                fixed (byte* dst = textureData[i].PixelData)
+                fixed (byte* dst = modelProcessData.textureData[i].PixelData)
                 {
                     Buffer.MemoryCopy(tex->PcData, dst, sizeInBytes, sizeInBytes);
                 }
@@ -134,17 +136,17 @@ namespace Phoenix.AssetTool.Core.Model
             for (int i = 0; i < texCount; i++)
             {
                 int index = i;
-                var etd = textureData[index];
+                var etd = modelProcessData.textureData[index];
 
                 etd.BuildTask = etd.Compressed ?
                     Task.Run(() => {
-                        TextureBinaryWriter.Build(etd.PixelData, status, etd.Options, etd.OutputPath);
-                        Interlocked.Increment(ref status.Step);
+                        TextureBinaryWriter.Build(etd.PixelData, modelProcessData.Status, etd.Options, etd.OutputPath);
+                        Interlocked.Increment(ref modelProcessData.Status.Step);
 
                     }) :
                     Task.Run(() => {
-                        TextureBinaryWriter.Build(etd.Size, etd.PixelData, status, etd.Options, etd.OutputPath);
-                        Interlocked.Increment(ref status.Step);
+                        TextureBinaryWriter.Build(etd.Size, etd.PixelData, modelProcessData.Status, etd.Options, etd.OutputPath);
+                        Interlocked.Increment(ref modelProcessData.Status.Step);
 
                     });
             }
@@ -152,13 +154,13 @@ namespace Phoenix.AssetTool.Core.Model
 
             return texNames;
         }
-        static async Task AwaitTexBinaries(AssetBuildStatus state)
+        static async Task AwaitTexBinaries(ModelProcessData modelProcessData)
         {
-            await Task.WhenAll(textureData.Select(t => t.BuildTask));
-            state.State = AssetBuildState.Built;
+            await Task.WhenAll(modelProcessData.textureData.Select(t => t.BuildTask));
+            modelProcessData.Status.State = AssetBuildState.Built;
         }
 
-        private static void WriteBinary(ModelLoadOptions options, string outputPath, List<ModelPart> parts)
+        private static void WriteBinary(string outputPath, ModelProcessData modelProcessData)
         {
             var dir = Path.GetDirectoryName(outputPath);
             if (!string.IsNullOrEmpty(dir))
@@ -167,129 +169,111 @@ namespace Phoenix.AssetTool.Core.Model
             using var fs = System.IO.File.Create(outputPath);
             using var bw = new BinaryWriter(fs);
 
+            var options = modelProcessData.LoadOptions;
+            var parts = modelProcessData.Parts;
+
             bw.Write("PHXM");   // custom file identifier
             bw.Write((uint)1);  // version
-            bw.Write(options.ExtractTextures);
+            bw.Write(options.IsAnimated);
             bw.Write(parts.Count);
-            //Console.WriteLine($"parts {parts.Count}");
+            //Log.Debug($"parts {parts.Count}");
+
             foreach (var part in parts)
             {
                 bw.Write(part.Name);
                 bw.Write(part.Meshes.Count);
-                //Console.WriteLine($"name {part.Name}");
-                //Console.WriteLine($"meshes {part.Meshes.Count}");
+                //Log.Debug($"part {part.Name}");
+
                 foreach (var mesh in part.Meshes)
                 {
                     bw.Write(mesh.Name);
                     bw.Write(mesh.MaterialIndex);
-                    WriteStruct(bw, mesh.Transform);
+                    bw.Write(mesh.Transform);
 
                     bw.Write(mesh.Indices.Length);
-                    WriteArray(bw, mesh.Indices);
+                    bw.Write(mesh.Indices);
                     
+                    //Log.Debug($"m {mesh.Name}");
+                    //var tv = mesh.Vertices[0];
+                    //Log.Debug($"test w{tv.Weights.ToStrF2()} bid {tv.BoneIds.ToStrInt()}");
+
                     bw.Write(mesh.Vertices.Length);
-                    WriteArray(bw, mesh.Vertices);
-                    
-                    //Console.WriteLine($"indices {mesh.Indices.Length}");
-                    //Console.WriteLine($"vertices {mesh.Vertices.Length}");
+
+                    //foreach(var v in mesh.Vertices)
+                    //{
+                    //    Log.Debug($"bid {v.BoneIds.ToStrInt()} w {v.Weights.ToStrF2()}");
+                    //}
+                    bw.Write(mesh.Vertices);
                 }
             }
-        }
+            bw.Write(options.ExtractTextures);
 
-        public static void ReadBinary(string path)
-        {
-            //Console.WriteLine("reading...");
-            using var fs = System.IO.File.OpenRead(path);
-            using var br = new BinaryReader(fs);
-
-            var fileID = br.ReadString();
-            var ver = br.ReadUInt32();
-
-            var extractTextures = br.ReadBoolean();
-            Console.WriteLine($"extract {extractTextures}");
-            var partsCount = br.ReadInt32();
-            //Console.WriteLine($"FILE ID {fileID}");
-            //Console.WriteLine($"VER {ver}");
-            //Console.WriteLine($"parts: {partsCount}");
-
-            for(int p = 0; p < partsCount; p++)
+            if(options.ExtractTextures)
             {
-                var partName = br.ReadString();
-                var meshCount = br.ReadInt32();
-
-                //Console.WriteLine($"name: {partName}");
-                //Console.WriteLine($"meshes: {meshCount}");
-
-                for(int m = 0; m < meshCount; m++)
+                bw.Write(modelProcessData.textureData.Length);
+                foreach(var tex in modelProcessData.textureData)
                 {
-                    var meshName = br.ReadString();
-                    var index = br.ReadInt32();
-                    var transform = ReadStruct<Matrix4x4>(br);
-                    var indicesLength = br.ReadInt32();
-                    var indices = ReadArray<uint>(br, indicesLength);
-                    var verticesLength = br.ReadInt32();
-                    var vertices = ReadArray<Vertex>(br, verticesLength);
-                    
-                    //Console.WriteLine($"mName: {meshName}");
-                    //Console.WriteLine($"mIndex {index}");
-                    //Console.WriteLine($"indices {indicesLength}");
-                    //Console.WriteLine($"vertices {verticesLength}");
-
+                    bw.Write(tex.Name);
                 }
             }
-
-        }
-
-        public static void WriteArray<T>(BinaryWriter bw, T[] value)
-            where T : unmanaged
-        {
-            var spanT = value.AsSpan();
-            var span = MemoryMarshal.AsBytes(spanT);
-            bw.Write(span);           
-        }
-
-        public static void WriteStruct<T>(BinaryWriter bw, T value)
-            where T : unmanaged
-        {
-            var span = MemoryMarshal.AsBytes(
-                MemoryMarshal.CreateSpan(ref value, 1));
-            bw.Write(span);
-        }
-
-        public static T ReadStruct<T>(BinaryReader br)
-            where T : unmanaged
-        {
-            T value = default;
-            var span = MemoryMarshal.AsBytes(
-                MemoryMarshal.CreateSpan(ref value, 1));
-            br.Read(span);
-            return value;
-        }
-
-        public static T[] ReadArray<T>(BinaryReader br, int count)
-            where T : unmanaged
-        {
-            var array = new T[count];
-            var span = MemoryMarshal.AsBytes(array.AsSpan());
-
-            int bytesToRead = span.Length;
-            int bytesRead = 0;
-
-            while (bytesRead < bytesToRead)
+            
+            if (options.IsAnimated)
             {
-                int read = br.Read(span.Slice(bytesRead));
-                if (read == 0)
-                    throw new EndOfStreamException();
+                var data = modelProcessData.AnimationLoadData;
+                bw.Write(data.InverseGlobalTransform);
 
-                bytesRead += read;
+                bw.Write(data.AnimatorNodes.Count);
+                //Log.Debug($"nodes {data.AnimatorNodes.Count}");
+
+                foreach (var node in data.AnimatorNodes)
+                {                   
+                    bw.Write(node.Name);
+                    bw.Write(node.IsBone);
+                    bw.Write(node.ParentID);
+                    bw.Write(node.ModelBoneID);
+                    bw.Write(node.Offset);
+                    bw.Write(node.BindTransform);
+                    bw.Write(node.Transform);
+
+                    var b = node.IsBone ? "B" : "N";
+                    //Log.Debug($"{b} {node.Name} {node.ParentID} {node.ModelBoneID} {node.Offset.ToStrF2()} {node.BindTransform.ToStrF2()} {node.Transform.ToStrF2()}");
+
+                }
+
+                bw.Write(modelProcessData.Animations.Count());
+                var boneCount = data.BoneInfoMap.Count;
+                bw.Write(boneCount);
+                //Log.Debug($"bc {boneCount}");
+                foreach (var an in modelProcessData.Animations)
+                {
+                    //Log.Debug($"name {an.Name}");
+                    //Log.Debug($"d {an.Duration}");
+                    //Log.Debug($"tps {an.TicksPerSecond}");
+
+                    bw.Write(an.Name);
+                    bw.Write(an.Duration);
+                    bw.Write(an.TicksPerSecond);
+
+                    for(var b = 0; b < boneCount; b++)
+                    {
+                        var boneKeyFrames = an.Keyframes[b];
+                        var keyFramesLen = boneKeyFrames.Length;
+                        bw.Write(keyFramesLen);
+                        //Log.Debug($"b{b} kf {keyFramesLen}");
+                        for (var k = 0; k < keyFramesLen; k++)
+                        {
+                            var keyFrame = boneKeyFrames[k];
+                            bw.Write(keyFrame.TimeStamp);
+                            bw.Write(keyFrame.SRT);
+
+                            //Log.Debug($"b{b} rot {keyFrame.TimeStamp} {keyFrame.SRT.Rotation.ToStr()}");
+                        }
+                    }
+                }
             }
-
-            return array;
         }
 
-        private unsafe static void ProcessNode(Node* node, Scene* scene, 
-            Matrix4x4 parentTransform, List<ModelPart> parts,
-            ModelLoadOptions options)
+        private unsafe static void ProcessNode(Node* node, Matrix4x4 parentTransform, ModelProcessData modelProcessData)
         {
             var meshes = new List<Mesh>();
 
@@ -297,12 +281,12 @@ namespace Phoenix.AssetTool.Core.Model
             nTransform = Matrix4x4.Transpose(nTransform);
             Matrix4x4 currentTransform = parentTransform * nTransform;
             var relativeTransform = currentTransform;
-
+            
             for (var i = 0; i < node->MNumMeshes; i++)
             {
-                var assimpMesh = scene->MMeshes[node->MMeshes[i]];
+                var assimpMesh = modelProcessData.Scene->MMeshes[node->MMeshes[i]];
 
-                var mesh = ProcessMesh(assimpMesh, scene, relativeTransform, options);
+                var mesh = ProcessMesh(assimpMesh, relativeTransform, modelProcessData);
                 mesh.Name = assimpMesh->MName;
                 mesh.AABB = assimpMesh->MAABB;
                 mesh.Transform = relativeTransform;
@@ -316,18 +300,15 @@ namespace Phoenix.AssetTool.Core.Model
                 name = node->MName;
 
             if (meshes.Count > 0)
-                parts.Add(new ModelPart(name, meshes));
+                modelProcessData.Parts.Add(new ModelPart(name, meshes));
 
             for (var i = 0; i < node->MNumChildren; i++)
             {
-                ProcessNode(node->MChildren[i], scene, currentTransform, parts, options);
+                ProcessNode(node->MChildren[i], currentTransform, modelProcessData);
             }
         }
-
-
         
-        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Scene* scene, 
-            Matrix4x4 relativeTransform, ModelLoadOptions options)
+        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 relativeTransform, ModelProcessData modelProcessData)
         {
             // data to fill
             List<Vertex> vertices = new List<Vertex>();
@@ -381,8 +362,8 @@ namespace Phoenix.AssetTool.Core.Model
                     indices.Add(face.MIndices[j]);
             }
 
-            if(options.IsAnimated)
-                ExtractBoneWeights(vertices, mesh, scene);
+            if(modelProcessData.LoadOptions.IsAnimated)
+                ExtractBoneWeights(vertices, mesh, modelProcessData);
 
             //if (_meshAttributes.HasFlag(MeshAttributes.boneIds) && _meshAttributes.HasFlag(MeshAttributes.boneWeights))
             //{
@@ -398,11 +379,12 @@ namespace Phoenix.AssetTool.Core.Model
             return new Mesh(vertices, indices, relativeTransform, name, aabb, materialIndex);
         }
 
-        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, Scene* scene)
+        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, ModelProcessData modelProcessData)
         {
             // Temporary dictionary to collect all influences per vertex
             var vertexInfluences = new Dictionary<int, List<(int BoneId, float Weight)>>();
 
+            var boneInfoMap = modelProcessData.BoneInfoMap;
             for (int boneID = 0; boneID < mesh->MNumBones; boneID++)
             {
                 string boneName = mesh->MBones[boneID]->MName;
@@ -413,14 +395,14 @@ namespace Phoenix.AssetTool.Core.Model
                 var numWeights = mesh->MBones[boneID]->MNumWeights;
 
                 int trueBoneId;
-                if (BoneInfoMap.TryGetValue(boneName, out var boneInfo))
+                if (boneInfoMap.TryGetValue(boneName, out var boneInfo))
                 {
                     trueBoneId = boneInfo.ID;
                 }
                 else
                 {
-                    trueBoneId = BoneInfoMap.Count;
-                    BoneInfoMap.Add(boneName, new BoneInfo(trueBoneId, offset));
+                    trueBoneId = boneInfoMap.Count;
+                    boneInfoMap.Add(boneName, new BoneInfo(trueBoneId, offset));
 
                 }
 

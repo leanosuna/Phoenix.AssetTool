@@ -11,10 +11,5 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             TimeStamp = timeStamp;
             SRT = new Transform(scale, rotation, position);
         }
-
-        public Transform Interpolate(Keyframe other, float factor)
-        {
-            return SRT.Interpolate(other.SRT, factor);
-        }
     }
 }

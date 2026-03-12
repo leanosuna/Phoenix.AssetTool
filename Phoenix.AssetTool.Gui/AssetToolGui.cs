@@ -51,6 +51,9 @@ namespace Phoenix.AssetTool.Gui
             Window.Closing += OnClose;
 
             Window.Run();
+
+
+            
         }
         public static void Start()
         {
@@ -62,6 +65,9 @@ namespace Phoenix.AssetTool.Gui
             Window.WindowState = WindowState.Maximized;
             Window.Center();
 
+            Log.Enabled = true;
+            Log.ClearLog();
+            Log.Info("Asset tool GUI");
 
             InputManager = new InputManager(Window);
             var inputContext = InputManager.GetInputContext();
@@ -205,23 +211,7 @@ namespace Phoenix.AssetTool.Gui
             return false;
 
         }
-        internal static void OpenAnimationFilePicker(ModelLoadOptions options)
-        {
-            using var dlg = new NativeFileDialog()
-            .SelectFile()
-            .AllowMultiple()
-            .AddFilter("animation files", "fbx");
-            
-            DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
-            if (result == DialogResult.Okay && files != null && files.Length > 0)
-            {
-                options.AnimationFiles = files.ToList();
-            }
-            else
-            {
-            }
-
-        }
+        
         public static void ShowHelpTooltip(string desc, bool sameLine = true)
         {
             if (sameLine)

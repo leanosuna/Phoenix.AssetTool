@@ -5,18 +5,14 @@ namespace Phoenix.AssetTool.Core.Model.Animation
 {
     public class AnimationLoader
     {
-        public static Matrix4x4 InverseGlobalTransform = Matrix4x4.Identity;
-        public static AnimatorNode[] AnimatorNodes = default!;
-        private static List<AnimatorNode> _animatorNodes = default!;
-        private static bool _modelHierarchySet = false;
-        private static Dictionary<string, BoneInfo> _boneInfoMap = default!;
-        public static List<Animation> ProcessAnimations(List<string> files, Dictionary<string, BoneInfo> boneInfoMap)
+        public static (List<Animation> animations, AnimationLoadData loadData) 
+            ProcessAnimations(List<string> files, Dictionary<string, BoneInfo> boneInfoMap)
         {
-            _boneInfoMap = boneInfoMap;
-            return files.Select(LoadAnimation).ToList();
+            var loadData = new AnimationLoadData { BoneInfoMap = boneInfoMap };
+            return (files.Select(f => LoadAnimation(f, loadData)).ToList(), loadData);
         }
         
-        private static unsafe Animation LoadAnimation(string path)
+        private static unsafe Animation LoadAnimation(string path, AnimationLoadData loadData)
         {
             var name = Path.GetFileNameWithoutExtension(path);
             var assimp = Assimp.GetApi();
@@ -30,10 +26,10 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 var error = assimp.GetErrorStringS();
                 throw new Exception(error);
             }
-            if (!_modelHierarchySet)
+            if (!loadData.ModelHierarchySet)
             {
                 var globalTransform = Matrix4x4.Transpose(rootNode->MTransformation);
-                InverseGlobalTransform = Matrix4x4.Invert(globalTransform, out var inverse) ? inverse : Matrix4x4.Identity;
+                loadData.InverseGlobalTransform = Matrix4x4.Invert(globalTransform, out var inverse) ? inverse : Matrix4x4.Identity;
 
                 //Log.Debug("-------------");
                 //Log.Debug("HIERACHY");
@@ -41,36 +37,36 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 //PrintHierarchy(rootNode, 0);
 
                 //ReadHierarchy(rootNode, -1, 0);
-                var rootFolded = ReadHierarchy(rootNode);
+                var rootFolded = ReadHierarchy(rootNode, loadData);
                 //Log.Debug("-------------");
                 //Log.Debug("FOLDED HIERACHY");
                 //_nCount = 0;
                 //PrintFoldedHierachy(_rootBoneHierarchyNode, -1);
                 //Log.Debug("-------------");
                 //Log.Debug("FLATTENED");
-                FlattenHierarchy(rootFolded, -1);
-                AnimatorNodes = _animatorNodes.ToArray();
-                //PrintFlattened();
+                FlattenHierarchy(rootFolded, -1, loadData);
+                //loadData.AnimatorNodes = _animatorNodes.ToArray();
+                //PrintFlattened(loadData.AnimatorNodes);
 
-                _modelHierarchySet = true;
+                loadData.ModelHierarchySet = true;
+                
             }
 
-            return new Animation(name, scene, _boneInfoMap);
+            return new Animation(name, scene, loadData.BoneInfoMap);
         }
 
-        private unsafe static void FlattenHierarchy(ModelBoneHierarchyNode node, int parentID, int level = -1)
+        private unsafe static void FlattenHierarchy(ModelBoneHierarchyNode node, int parentID, AnimationLoadData loadData, int level = -1)
         {
-            int currentIndex = _animatorNodes.Count; // index that will be assigned to this node in the flat array
+            int currentIndex = loadData.AnimatorNodes.Count; // index that will be assigned to this node in the flat array
 
             if (node.IsBone)
             {
-                var boneInfoMap = _boneInfoMap;
-                if (boneInfoMap.TryGetValue(node.Name, out var info))
+                if (loadData.BoneInfoMap.TryGetValue(node.Name, out var info))
                 {
                     var an = new AnimatorNode(node.Transform, parentID, info.ID, info.Offset);
                     an.Name = TrimBoneName(node.Name);
                     an.Level = level;
-                    _animatorNodes.Add(an);
+                    loadData.AnimatorNodes.Add(an);
                 }
             }
             else
@@ -78,23 +74,23 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 var an = new AnimatorNode(node.Transform, parentID);
                 an.Name = TrimBoneName(node.Name);
                 an.Level = level;
-                _animatorNodes.Add(an);
+                loadData.AnimatorNodes.Add(an);
             }
 
             foreach (var child in node.Children)
             {
-                FlattenHierarchy(child, currentIndex, level + 1);
+                FlattenHierarchy(child, currentIndex, loadData, level + 1);
             }
         }
 
-        private unsafe static ModelBoneHierarchyNode ReadHierarchy(Node* node)
+        private unsafe static ModelBoneHierarchyNode ReadHierarchy(Node* node, AnimationLoadData loadData)
         {
             // Try to detect if this node is the head of a helper-chain that ends in a bone node.
             // (Mixamo pre-scale_bone, pre-rotation_bone, pre-translation_bone, bone, style)
             // If it is, fold the transforms along the single-child chain up to the bone and
             // create a single AnimationNode entry for that bone (with BaseTransform = folded transform).
 
-            var boneInfoMap = _boneInfoMap;
+            var boneInfoMap = loadData.BoneInfoMap;
             // Attempt to collect a chain starting at 'node' that leads to a bone node
             if (TryCollectChainThatEndsInBone(node, boneInfoMap, out var foldedTransform, out Node* boneNode, out string boneName))
             {
@@ -107,7 +103,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     var children = new List<ModelBoneHierarchyNode>();
                     for (int i = 0; i < boneNode->MNumChildren; i++)
                     {
-                        var child = ReadHierarchy(boneNode->MChildren[i]);
+                        var child = ReadHierarchy(boneNode->MChildren[i], loadData);
                         if (child != null)
                             children.Add(child);
                     }
@@ -123,7 +119,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
 
             for (var i = 0; i < node->MNumChildren; i++)
             {
-                var child = ReadHierarchy(node->MChildren[i]);
+                var child = ReadHierarchy(node->MChildren[i], loadData);
                 if (child != null)
                     nodeChildren.Add(child);
             }
@@ -135,7 +131,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             else
             {
                 if (nodeChildren.Count == 0) // skip non-bone with no children
-                    return null;
+                    return null!;
 
                 return new ModelBoneHierarchyNode(name, nodeTransform, nodeChildren);
             }
@@ -148,7 +144,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             accumulated = Matrix4x4.Identity;
             Node* cur = start;
             boneNodeOut = null;
-            boneNameOut = null;
+            boneNameOut = null!;
 
             // Walk while there's exactly one child (linear chain) and stop if we find a bone node
             while (cur != null)
@@ -196,40 +192,51 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 PrintHierarchy(node->MChildren[i], level + 1);
             }
         }
-        private unsafe void PrintFlattened()
+
+        private static int TabCount(List<AnimatorNode> nodes, AnimatorNode node)
         {
-            for (var i = 0; i < _animatorNodes.Count; i++)
+            if (node.ParentID == -1 || node.ParentID == 0)
+                return 0;
+
+            return TabCount(nodes, nodes[node.ParentID]) + 1;
+
+        }
+        private static void PrintFlattened(List<AnimatorNode> animatorNodes)
+        {
+            Log.Debug("[Animation Nodes]");
+            for (var i = 0; i < animatorNodes.Count; i++)
             {
-                var node = _animatorNodes[i];
+                var node = animatorNodes[i];
                 var str = node.IsBone ? "B" : "N";
                 var spc = "";
-                for (var j = 0; j < node.Level; j++)
+                for (var j = 0; j < TabCount(animatorNodes, node); j++)
                 {
                     spc += "-";
                 }
                 str += $"{i}{spc} PID {node.ParentID}, MID {node.ModelBoneID}, {node.Name}";
-                //Log.Debug(str);
+                Log.Debug(str);
             }
+            Log.Debug("---");
         }
-        private unsafe void PrintFoldedHierachy(ModelBoneHierarchyNode node, int parentID)
-        {
+        //private unsafe void PrintFoldedHierachy(ModelBoneHierarchyNode node, int parentID)
+        //{
 
-            var str = $"{_nCount}";
+        //    var str = $"{_nCount}";
 
-            str += node.IsBone ? "B" : " ";
+        //    str += node.IsBone ? "B" : " ";
 
-            for (var i = 0; i < parentID; i++)
-            {
-                str += "-";
-            }
-            //str += $"PID {parentID} " + (node.Name).TrimBoneName();
-            //Log.Debug(str);
-            for (var i = 0; i < node.Children.Count; i++)
-            {
-                _nCount++;
-                PrintFoldedHierachy(node.Children[i], parentID + 1);
-            }
-        }
+        //    for (var i = 0; i < parentID; i++)
+        //    {
+        //        str += "-";
+        //    }
+        //    //str += $"PID {parentID} " + (node.Name).TrimBoneName();
+        //    //Log.Debug(str);
+        //    for (var i = 0; i < node.Children.Count; i++)
+        //    {
+        //        _nCount++;
+        //        PrintFoldedHierachy(node.Children[i], parentID + 1);
+        //    }
+        //}
         public static string TrimBoneName(string name)
         {
             if (name.StartsWith("mixamo"))

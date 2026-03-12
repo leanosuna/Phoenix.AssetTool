@@ -1,5 +1,6 @@
 ﻿using BCnEncoder.Shared;
 using ImGuiNET;
+using NativeFileDialogNET;
 using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
@@ -209,7 +210,9 @@ namespace Phoenix.AssetTool.Gui
             if (ImGui.Checkbox("Is Animated", ref animated))
             {
                 if(animated)
-                    AssetToolGui.OpenAnimationFilePicker(options);
+                    OpenAnimationFilePicker(asset.RelativePath, options);
+
+
             }
             options.IsAnimated = animated;
 
@@ -227,6 +230,25 @@ namespace Phoenix.AssetTool.Gui
             ImGui.Separator();
 
             
+        }
+
+        internal static void OpenAnimationFilePicker(string path, ModelLoadOptions options)
+        {
+            using var dlg = new NativeFileDialog()
+            .SelectFile()
+            .AllowMultiple()
+            .AddFilter("animation files", "fbx");
+
+            DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
+            if (result == DialogResult.Okay && files != null && files.Length > 0)
+            {
+                options.AnimationFiles = files.ToList();
+                AssetOptions.Set(path, options);
+            }
+            else
+            {
+            }
+
         }
         public static void DrawTextureOptions(AssetEntry asset, string path)
         {

@@ -20,6 +20,6 @@ namespace Phoenix.AssetTool.Core.Model
             PostProcessSteps.LimitBoneWeights);
 
         public bool IsAnimated { get; set; } = false;
-        public List<string> AnimationFiles = new();
+        public List<string> AnimationFiles { get; set; } = new();
     }
 }

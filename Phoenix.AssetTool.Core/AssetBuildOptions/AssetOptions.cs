@@ -72,7 +72,7 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
 
         public static void Save()
         {
-            JsonIOTools.Save(_absolutePath, _alo);
+            File.WriteAllText(_absolutePath, JsonConvert.SerializeObject(_alo, Formatting.Indented));
         }
 
     }

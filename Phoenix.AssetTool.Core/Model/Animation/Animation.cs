@@ -9,15 +9,10 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         public string Name { get; private set; }
         public float Duration { get; private set; }
         public float TicksPerSecond { get; private set; }
-        public float CurrentTime { get; private set; }
-        public Transform[] CurrentFrame { get; private set; }
-        public Matrix4x4[] Transforms { get; private set; }
+        
+        public Keyframe[][] Keyframes { get; private set; }
+        public int BoneCount { get; private set; }
 
-        private Keyframe[][] _keyframes;
-
-
-        private int _boneCount;
-        public float _randomStartOffset;
         public unsafe Animation(string name, Scene* scene, Dictionary<string, BoneInfo> boneInfoMap)
         {
             Name = name;
@@ -26,26 +21,34 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             TicksPerSecond = (float)assAnimation->MTicksPerSecond;
             if (TicksPerSecond <= 0)
                 TicksPerSecond = 25.0f;
-            _randomStartOffset = (float)new Random().NextDouble() * Duration;
-            CurrentFrame = new Transform[boneInfoMap.Count];
+            
+            Keyframes = ReadKeyFrames(assAnimation, boneInfoMap);
 
-            for (int i = 0; i < CurrentFrame.Length; i++)
+            BoneCount = Keyframes.GetLength(0);
+                        
+        }
+        bool GetBoneInfo(string nodeName, Dictionary<string, BoneInfo> boneInfoMap, out BoneInfo info)
+        {
+            if (boneInfoMap.TryGetValue(nodeName, out var exactBoneInfo))
             {
-                CurrentFrame[i] = new Transform(Vector3.One, Quaternion.Identity, Vector3.Zero);
+                info = exactBoneInfo;
+                return true;
             }
-            _keyframes = ReadKeyFrames(assAnimation, boneInfoMap);
 
-            _boneCount = _keyframes.GetLength(0);
+            var bi = boneInfoMap.Select(e => (nodeName.Contains(e.Key)));
 
-            Transforms = new Matrix4x4[Vertex.MAX_BONE_COUNT];
-
-            for (int b = 0; b < Vertex.MAX_BONE_COUNT; b++)
+            foreach(var e in boneInfoMap)
             {
-                Transforms[b] = Matrix4x4.Identity;
+                if(nodeName.Contains(e.Key))
+                {
+                    info = e.Value;
+                    return true;
+                }
             }
+            info = default!;
+            return false;
             
         }
-
         unsafe Keyframe[][] ReadKeyFrames(Silk.NET.Assimp.Animation* anim, Dictionary<string, BoneInfo> boneInfoMap)
         {
             var boneCount = boneInfoMap.Count;
@@ -57,23 +60,47 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             {
                 var channel = anim->MChannels[c];
                 var nodeName = channel->MNodeName;
+                
+                var behaviourPre = channel->MPreState;
+                var behaviourPost = channel->MPostState;
 
-                if (!boneInfoMap.TryGetValue(nodeName, out var info))
+                //if (!boneInfoMap.TryGetValue(nodeName, out var info))
+                //    continue;
+
+                if (!GetBoneInfo(nodeName, boneInfoMap, out var info))
                     continue;
 
-                int maxKeys = (int)Math.Max(Math.Max(channel->MNumPositionKeys, channel->MNumRotationKeys), channel->MNumScalingKeys);
+                var posKeyCount = channel->MNumPositionKeys;
+                var rotKeyCount = channel->MNumPositionKeys;
+                var sclKeyCount = channel->MNumPositionKeys;
+
+
+                int maxKeys = (int)Math.Max(Math.Max(posKeyCount, rotKeyCount), sclKeyCount);
                 for (int k = 0; k < maxKeys; k++)
                 {
                     var t = (float)(
-                        (k < channel->MNumPositionKeys) ? channel->MPositionKeys[k].MTime :
-                        (k < channel->MNumRotationKeys) ? channel->MRotationKeys[k].MTime :
+                        (k < posKeyCount) ? channel->MPositionKeys[k].MTime :
+                        (k < rotKeyCount) ? channel->MRotationKeys[k].MTime :
                         channel->MScalingKeys[k].MTime
                     );
 
-                    var pos = (k < channel->MNumPositionKeys) ? channel->MPositionKeys[k].MValue : channel->MPositionKeys[channel->MNumPositionKeys - 1].MValue;
-                    var rot = (k < channel->MNumRotationKeys) ? channel->MRotationKeys[k].MValue : channel->MRotationKeys[channel->MNumRotationKeys - 1].MValue;
-                    var scl = (k < channel->MNumScalingKeys) ? channel->MScalingKeys[k].MValue : channel->MScalingKeys[channel->MNumScalingKeys - 1].MValue;
+                    //Vector3 pos, scl;
+                    //Quaternion rot;
 
+                    //if (k == 0)
+                    //{
+                    //    if(k)
+                    //    pos = Vector3.Zero;
+                    //    scl = Vector3.One;
+                    //    rot = Quaternion.Identity;
+                    //}
+                    //else
+                    //{
+                    //}
+                    var pos = (k < posKeyCount) ? channel->MPositionKeys[k].MValue : channel->MPositionKeys[channel->MNumPositionKeys - 1].MValue;
+                    var rot = (k < rotKeyCount) ? channel->MRotationKeys[k].MValue : channel->MRotationKeys[channel->MNumRotationKeys - 1].MValue;
+                    var scl = (k < sclKeyCount) ? channel->MScalingKeys[k].MValue : channel->MScalingKeys[channel->MNumScalingKeys - 1].MValue;
+                    
                     keyframes[info.ID].Add(new Keyframe((float)t, scl, rot, pos));
                 }
             }
