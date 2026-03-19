@@ -12,10 +12,16 @@ namespace Phoenix.AssetTool.Core.Build
     {
         public static async Task BuildAsync(IReadOnlyList<AssetBuildStatus> buildList, bool rebuild, CancellationToken token = default)
         {
+            AssetOptions.Save();
+
+            ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
+            
             var tasks = buildList.Select(status =>
                 Task.Run(() =>
                 {
                     if (token.IsCancellationRequested)
+                        return;
+                    if (status.Asset.Type == AssetType.Shader)
                         return;
 
                     try
@@ -38,7 +44,7 @@ namespace Phoenix.AssetTool.Core.Build
             ).ToArray();
 
             await Task.WhenAll(tasks);
-            AssetOptions.Save();
+            
         }
 
 
@@ -76,9 +82,11 @@ namespace Phoenix.AssetTool.Core.Build
                     TextureBinaryWriter.Build(status, texOptions, sourcePath, outputPath);
                     break;
 
-                case AssetType.Shader:
-                    var shOptions = AssetOptions.OfShader(asset.RelativePath);
-                    break;
+                //case AssetType.Shader:
+                //    var shOptions = AssetOptions.OfShader(asset.RelativePath);
+                //    //ShaderAssetHandler.Build(status, shOptions, sourcePath, outputPath);
+                //    ShaderBinaryWriter.Build(status, shOptions, sourcePath, outputPath);
+                //    break;
             }
             return true;
         }
