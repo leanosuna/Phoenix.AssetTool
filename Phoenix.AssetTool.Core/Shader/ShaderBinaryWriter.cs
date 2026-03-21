@@ -24,14 +24,14 @@ namespace Phoenix.AssetTool.Core.Shader
             
             
             Log.Debug($"processing");
-            var shData = ProcessShaderSource(sourcePath);
+            ProcessShaderSource(sourcePath);
 
             var sourceDir = Path.GetDirectoryName(sourcePath)!;
             
 
         }
 
-        public static ShaderData ProcessShaderSource(string sourcePath)
+        public static void ProcessShaderSource(string sourcePath)
         {
             string shaderSource = File.ReadAllText(sourcePath);
 
@@ -67,37 +67,37 @@ namespace Phoenix.AssetTool.Core.Shader
                 fragment = split3[1];
             }
 
-            return new ShaderData
-            {
-                Stages = 
-                [
-                    new ShaderStage { Source = vertex, Kind = ShaderKind.VertexShader },
-                    new ShaderStage { Source = fragment, Kind = ShaderKind.FragmentShader}
-                ]
-            };
+            //return new ShaderData
+            //{
+            //    Stages = 
+            //    [
+            //        new ShaderStage { Source = vertex, Kind = ShaderKind.VertexShader },
+            //        new ShaderStage { Source = fragment, Kind = ShaderKind.FragmentShader}
+            //    ]
+            //};
         }
     }
 
     
 
-    public class ShaderData
-    {
-        public List<ShaderStage> Stages { get; internal set; } = default!;
+    //public class ShaderData
+    //{
+    //    public List<ShaderStage> Stages { get; internal set; } = default!;
         
-        public ShaderData()
-        {
+    //    public ShaderData()
+    //    {
 
-        }
-    }
+    //    }
+    //}
 
-    public class ShaderStage
-    {
-        public string Source { get; internal set; } = default!;
-        public ShaderKind Kind { get; internal set; } = default!;
+    //    public class ShaderStage
+    //    {
+    //        public string Source { get; internal set; } = default!;
+    //        public ShaderKind Kind { get; internal set; } = default!;
 
-        public ShaderStage()
-        {
+    //        public ShaderStage()
+    //        {
 
-        }
-    }
+    //        }
+    //    }
 }

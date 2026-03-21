@@ -1,17 +1,21 @@
 ﻿using Phoenix.AssetTool.Core.Build;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Phoenix.AssetTool.Core.Shader
 {
     internal static class ShaderAssetHandler
     {
-        static Dictionary<AssetEntry, AssetEntry?> pairs = new Dictionary<AssetEntry, AssetEntry?>();
+        //static Dictionary<AssetBuildStatus, AssetBuildStatus?> pairs = new Dictionary<AssetBuildStatus, AssetBuildStatus?>();
+        static List<Shader> shaders = new List<Shader>();
         public static void Build(List<AssetBuildStatus> items)
         {
-            var allPairsFound = GeneratePairs(items);
+            
+            var allPairsFound = FindPairs(items);
 
             if (!allPairsFound)
             {
@@ -23,11 +27,33 @@ namespace Phoenix.AssetTool.Core.Shader
 
                 return;
             }
+            GLCompiler.Init();
+            
+            foreach (var s in shaders)
+            {
+                s.ProcessFiles();
+                s.StatusA.Step +=1;
+                s.StatusB?.Step +=1;
 
+                var result = GLCompiler.Compile(s.SourceVert, s.SourceFrag);
+                if(!result.Success)
+                {
+                    s.StatusA.State = AssetBuildState.Failed;
+                    s.StatusB?.State = AssetBuildState.Failed;
 
+                    s.StatusA.Error = result.ErrorMessage;
+                    s.StatusB?.Error = result.ErrorMessage;
+                }
+                else
+                {
+                    s.StatusA.State = AssetBuildState.Built;
+                    s.StatusB?.State = AssetBuildState.Built;
+
+                }
+            }
         }
 
-        static bool GeneratePairs(List<AssetBuildStatus> items)
+        static bool FindPairs(List<AssetBuildStatus> items)
         {
             List<int> skipPairIndices = new List<int>();
             List<int> skipIndices = new List<int>();
@@ -42,17 +68,40 @@ namespace Phoenix.AssetTool.Core.Shader
 
                 var ext = Path.GetExtension(asset.RelativePath);
 
-                if (ext == "shader")
+                if (ext == ".shader" || ext == ".glsl")
                 {
                     skipPairIndices.Add(i);
-                    pairs.Add(asset, null);
+                    //pairs.Add(asset, null);
+                    shaders.Add(new Shader(item));
                     continue;
                 }
 
+                if (i + 1 >= items.Count)
+                {
+                    item.State = AssetBuildState.Failed;
+                    item.Error = "Shader Pair not found";
+                    return false;
+                }
+                var found = false;
+
+                var nextItem = items[i + 1];
+                
                 var name = Path.GetFileNameWithoutExtension(asset.RelativePath);
                 skipPairIndices.Add(i);
+                var nextAsset = nextItem.Asset;
+                var nextName = Path.GetFileNameWithoutExtension(nextAsset.RelativePath);
 
-                var found = false;
+                if (name.Equals(nextName, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    found = true;
+                    //pairs.Add(asset, nextAsset);
+                    shaders.Add(new Shader(item, nextItem));
+                    skipIndices.Add(i + 1);
+                    skipPairIndices.Add(i+1);
+                    continue;
+                }
+
+
                 for (var j = 0; j < items.Count; i++)
                 {
                     if (skipPairIndices.Contains(j))
@@ -65,7 +114,8 @@ namespace Phoenix.AssetTool.Core.Shader
                     if (name.Equals(pairName, StringComparison.InvariantCultureIgnoreCase))
                     {
                         found = true;
-                        pairs.Add(asset, pairAsset);
+                        //pairs.Add(asset, pairAsset);
+                        shaders.Add(new Shader(item, pairItem));
 
                     }
                 }
@@ -80,5 +130,91 @@ namespace Phoenix.AssetTool.Core.Shader
         }
     }
     
+    public class Shader
+    {
+        public string SourceVert { get; private set; } = "";
+        public string SourceFrag { get; private set; } = "";
+        public AssetBuildStatus StatusA { get; private set; }
+        public AssetBuildStatus StatusB { get; private set; } = default!;
+
+        bool _singleFile = false;
+        public Shader(AssetBuildStatus statusA, AssetBuildStatus statusB)
+        {
+            StatusA = statusA;
+            StatusB = statusB;
+        }
+        public Shader(AssetBuildStatus status)
+        {
+            StatusA = status;
+            _singleFile = true;
+        }
+
+        
+        public void ProcessFiles()
+        {
+            var pathA = Path.Combine(
+                Manifest.BaseDirectory,
+                StatusA.Asset.RelativePath);
+
+            var stageA = File.ReadAllText(pathA);
+
+            if(_singleFile)
+            {
+                (SourceVert, SourceFrag) = SplitFromSingleFile(stageA);
+                return;
+            }
+
+            var pathB = Path.Combine(
+                Manifest.BaseDirectory,
+                StatusB.Asset.RelativePath);
+
+            var stageB = File.ReadAllText(pathB);
+
+
+            if (Path.GetExtension(pathA) == ".vert")
+            {
+                SourceVert = stageA;
+                SourceFrag = stageB;
+            }
+            else
+            {
+                SourceVert = stageB;
+                SourceFrag = stageA;
+            }
+        }
+        public (string, string) SplitFromSingleFile(string shaderSource)//add status
+        {
+            var markVertex = "#vert";
+            var markFragment = "#frag";
+
+            string vertex, fragment = "";
+
+            var split = shaderSource.Split(markVertex);
+            if (split.Length != 2) //replace with status.state status.errormessage
+                throw new Exception($"marker {markVertex} not found");
+
+            if (split[0].Length == 0)
+            {
+
+                var split2 = split[1].Split(markFragment);
+
+                if (split2.Length != 2)
+                    throw new Exception($"marker {markFragment} not found");
+                vertex = split2[0];
+                fragment = split2[1];
+            }
+            else
+            {
+                var split3 = split[0].Split(markFragment);
+
+                if (split3.Length != 2)
+                    throw new Exception($"marker {markFragment} not found");
+
+                vertex = split[1];
+                fragment = split3[1];
+            }
+            return (vertex, fragment);
+        }
+    }
 
 }

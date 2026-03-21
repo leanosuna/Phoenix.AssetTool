@@ -17,10 +17,10 @@ namespace Phoenix.AssetTool.Core.Shader
             GL = gl;
         }
 
+        
         public static CompileResult Compile(string vertSource, string fragSource)
         {
-            Init();
-
+            
             var result = LoadShader(ShaderType.VertexShader, vertSource, out uint vertex);
             if (!result.Success)
                 return result;
