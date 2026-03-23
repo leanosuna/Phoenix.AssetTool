@@ -13,8 +13,7 @@ namespace Phoenix.AssetTool.Gui
 {
     public static class AssetBuildGui
     {
-        static AssetManifest manifest;
-
+        
         static float timeout = 5;
         static float timeoutTimer = float.MaxValue;
 
@@ -47,7 +46,7 @@ namespace Phoenix.AssetTool.Gui
                     DrawBuildItem(item);
                 }
             }
-            //ImGui.End();
+            
         }
         private static void DrawBuildItem(AssetBuildStatus item)
         {

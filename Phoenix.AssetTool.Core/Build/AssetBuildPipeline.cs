@@ -14,8 +14,10 @@ namespace Phoenix.AssetTool.Core.Build
         {
             AssetOptions.Save();
 
-            ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
-             
+            _ = Task.Run(() =>
+            {
+                ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
+            });
             var tasks = buildList.Select(status =>
                 Task.Run(() =>
                 {

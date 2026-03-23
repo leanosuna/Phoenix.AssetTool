@@ -1,4 +1,5 @@
 ﻿using Phoenix.AssetTool.Core.Build;
+using Silk.NET.Core.Native;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
@@ -34,6 +35,17 @@ namespace Phoenix.AssetTool.Core.Shader
                 s.ProcessFiles();
                 s.StatusA.Step +=1;
                 s.StatusB?.Step +=1;
+                var name = Path.GetFileNameWithoutExtension(s.StatusA.Asset.RelativePath);
+                Log.Debug($"Compiling {name}");
+
+
+                var outputPath = Path.Combine(
+                    Manifest.BaseDirectory,
+                    "ContentBin",
+                    s.StatusA.Asset.RelativePath);
+
+                var dir = Path.GetDirectoryName(outputPath)!;
+                Directory.CreateDirectory(dir);
 
                 var result = GLCompiler.Compile(s.SourceVert, s.SourceFrag);
                 if(!result.Success)
@@ -43,14 +55,23 @@ namespace Phoenix.AssetTool.Core.Shader
 
                     s.StatusA.Error = result.ErrorMessage;
                     s.StatusB?.Error = result.ErrorMessage;
+                    continue;
                 }
-                else
-                {
-                    s.StatusA.State = AssetBuildState.Built;
-                    s.StatusB?.State = AssetBuildState.Built;
+                var fileName = Path.Combine(dir, name + ".vert");
+                File.WriteAllText(fileName, s.SourceVert);
 
-                }
+                fileName = Path.Combine(dir, name + ".frag");
+                File.WriteAllText(fileName, s.SourceFrag);
+
+                ShaderHelperClassGenerator.Generate(dir, name, result.UniformsInfo);
+
+
+                s.StatusA.State = AssetBuildState.Built;
+                s.StatusB?.State = AssetBuildState.Built;
+
+                
             }
+            GLCompiler.Dispose();
         }
 
         static bool FindPairs(List<AssetBuildStatus> items)

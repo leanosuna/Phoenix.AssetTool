@@ -15,12 +15,14 @@ namespace Phoenix.AssetTool.Core.Shader
         public static void Set(GL gl)
         {
             GL = gl;
+            
         }
 
         
         public static CompileResult Compile(string vertSource, string fragSource)
         {
-            
+            //return new CompileResult { Success = true };
+
             var result = LoadShader(ShaderType.VertexShader, vertSource, out uint vertex);
             if (!result.Success)
                 return result;
@@ -40,11 +42,15 @@ namespace Phoenix.AssetTool.Core.Shader
                 return new CompileResult { Success = false, ErrorMessage = $"[PROGRAM FAIL] {GL.GetProgramInfoLog(handle)}" };
             
             GL.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformsCount);
+            List<ShaderUniformInfo> uniformsInfo = new();
             for (int i = 0; i < uniformsCount; i++)
             {
                 var name = GL.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
 
-                Log.Debug($"{type} {name} sz {size}");
+                name = name.EndsWith("[0]") ? name.Substring(0, name.Length - 3) : name;
+
+                uniformsInfo.Add(new ShaderUniformInfo{Name = name, Type = type, Size = size});
+                //Log.Debug($"{type} {name} sz {size}");
             }
 
             GL.DetachShader(handle, vertex);
@@ -53,7 +59,7 @@ namespace Phoenix.AssetTool.Core.Shader
             GL.DeleteShader(fragment);
 
 
-            return new CompileResult { Success = true };
+            return new CompileResult { Success = true, UniformsInfo = uniformsInfo };
         }
 
         private static CompileResult LoadShader(ShaderType type, string src, out uint handle)
@@ -70,7 +76,8 @@ namespace Phoenix.AssetTool.Core.Shader
         }
 
         public static void Init()
-        {   
+        {
+            //return;
             _contextState = ContextState.Creating;
 
             var options = WindowOptions.Default;
@@ -101,13 +108,25 @@ namespace Phoenix.AssetTool.Core.Shader
 
     public class CompileResult
     {
-        public bool Success;
+        public bool Success = false;
         public string ErrorMessage = "";
-
+        public List<ShaderUniformInfo> UniformsInfo = default!;
         public CompileResult()
         {
             
         }
 
+    }
+
+    public class ShaderUniformInfo
+    {
+        public string Name = "";
+        public UniformType Type = default;
+        public int Size = 0;
+        public ShaderUniformInfo()
+        {
+        }
+
+        
     }
 }
