@@ -297,7 +297,14 @@ namespace Phoenix.AssetTool.Gui
         }
         public static void DrawShaderOptions(AssetEntry asset, string path)
         {
-            ImGui.Text($"SHADER LOAD OPTIONS");
+            var pathAbs = Path.Combine(
+                Manifest.BaseDirectory, asset.RelativePath);
+
+            //var name = Path.GetFileName(asset.RelativePath);
+            //ImGui.Text($"");
+
+            var content = System.IO.File.ReadAllText(pathAbs);
+            ImGui.Text(content);
         }
 
         

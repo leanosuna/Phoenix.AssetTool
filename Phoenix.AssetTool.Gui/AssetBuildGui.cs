@@ -46,7 +46,8 @@ namespace Phoenix.AssetTool.Gui
                     DrawBuildItem(item);
                 }
             }
-            
+            ImGui.Separator();
+
         }
         private static void DrawBuildItem(AssetBuildStatus item)
         {

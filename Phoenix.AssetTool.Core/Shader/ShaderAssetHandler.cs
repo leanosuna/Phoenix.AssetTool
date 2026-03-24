@@ -63,12 +63,10 @@ namespace Phoenix.AssetTool.Core.Shader
                 fileName = Path.Combine(dir, name + ".frag");
                 File.WriteAllText(fileName, s.SourceFrag);
 
-                ShaderHelperClassGenerator.Generate(dir, name, result.UniformsInfo);
-
+                ShaderHelperClassGenerator.Generate(dir, Manifest.Namespace, name, s.StatusA.Asset.RelativePath, result.UniformsInfo);
 
                 s.StatusA.State = AssetBuildState.Built;
                 s.StatusB?.State = AssetBuildState.Built;
-
                 
             }
             GLCompiler.Dispose();
@@ -92,7 +90,6 @@ namespace Phoenix.AssetTool.Core.Shader
                 if (ext == ".shader" || ext == ".glsl")
                 {
                     skipPairIndices.Add(i);
-                    //pairs.Add(asset, null);
                     shaders.Add(new Shader(item));
                     continue;
                 }
@@ -115,7 +112,6 @@ namespace Phoenix.AssetTool.Core.Shader
                 if (name.Equals(nextName, StringComparison.InvariantCultureIgnoreCase))
                 {
                     found = true;
-                    //pairs.Add(asset, nextAsset);
                     shaders.Add(new Shader(item, nextItem));
                     skipIndices.Add(i + 1);
                     skipPairIndices.Add(i+1);
@@ -135,7 +131,6 @@ namespace Phoenix.AssetTool.Core.Shader
                     if (name.Equals(pairName, StringComparison.InvariantCultureIgnoreCase))
                     {
                         found = true;
-                        //pairs.Add(asset, pairAsset);
                         shaders.Add(new Shader(item, pairItem));
 
                     }

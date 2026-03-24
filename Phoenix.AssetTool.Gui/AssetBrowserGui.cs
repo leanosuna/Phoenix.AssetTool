@@ -63,6 +63,17 @@ namespace Phoenix.AssetTool.Gui
                       
 
             AssetBuildGui.DrawBuildWindow(dt);
+            
+            var nameSpace = Manifest.Namespace;
+            ImGui.Text("Generator: Shader helpers namespace");
+            ImGui.InputText("##Shader namespace", ref nameSpace, 30);
+            ImGui.Separator();
+
+            if (Manifest.Namespace != nameSpace)
+            {
+                Manifest.Namespace = nameSpace;
+                Manifest.Save();
+            }
 
             if (ImGui.CollapsingHeader("Assets selected", ImGuiTreeNodeFlags.DefaultOpen))
             {

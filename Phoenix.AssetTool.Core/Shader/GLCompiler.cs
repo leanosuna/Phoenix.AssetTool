@@ -49,7 +49,16 @@ namespace Phoenix.AssetTool.Core.Shader
 
                 name = name.EndsWith("[0]") ? name.Substring(0, name.Length - 3) : name;
 
-                uniformsInfo.Add(new ShaderUniformInfo{Name = name, Type = type, Size = size});
+                var location = GL.GetUniformLocation(handle, name);
+
+                if (location != -1)
+                {
+                    //GL.GetActiveUniformBlock(handle, 0, GLEnum.UniformBlockIndex, out int index);
+                    //if (index != -1)
+                    //    Log.Debug($"{type} {name} sz {size} UBO {index}");
+                    uniformsInfo.Add(new ShaderUniformInfo{Name = name, Type = type, Size = size});
+                }
+
                 //Log.Debug($"{type} {name} sz {size}");
             }
 

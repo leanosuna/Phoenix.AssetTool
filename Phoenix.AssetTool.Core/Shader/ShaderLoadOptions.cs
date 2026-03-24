@@ -7,8 +7,6 @@ namespace Phoenix.AssetTool.Core.Shader
 {
     public class ShaderLoadOptions
     {
-        public bool AutoRebuild { get; set; } = false;
-
-        public string OutputDir { get; set; } = "";
+        //public string Namespace = "";
     }
 }

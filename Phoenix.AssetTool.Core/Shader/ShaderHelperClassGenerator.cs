@@ -8,19 +8,18 @@ namespace Phoenix.AssetTool.Core.Shader
 {
     public static class ShaderHelperClassGenerator
     {
-        public static void Generate(string dir, string name, List<ShaderUniformInfo> uniforms)
+        public static void Generate(string dir, string namespaceName, string name, string relativePath, List<ShaderUniformInfo> uniforms)
         {
-            
-
+            relativePath = Path.ChangeExtension(relativePath, null);
             var className = ToClassName(name);
-            var fileName = className + ".cs";
+            var fileName = className + "-gen.cs";
             var outputPath = Path.Combine(
                 dir,
                 fileName);
 
-            Log.Debug($"Generating {className} at {outputPath}");
+            Log.Debug($"Generating {namespaceName}.{className} at {outputPath}");
 
-            var source = GenerateString(className, uniforms);
+            var source = GenerateString(namespaceName, relativePath, className, uniforms);
 
             File.WriteAllText(outputPath, source);
         }
@@ -33,54 +32,57 @@ namespace Phoenix.AssetTool.Core.Shader
             var nameFirstUpper = firstChar+restOfName;
             return $"Shader{nameFirstUpper}";
         }
-        public static string GenerateString(string className,List<ShaderUniformInfo> uniforms)
+        public static string GenerateString(string namespaceName, string relativePath, string className, List<ShaderUniformInfo> uniforms)
         {
-            
             var sb = new StringBuilder();
-
-            sb.AppendLine($"public partial class {className} : ShaderInterface");
+            sb.AppendLine("using System.Numerics;");
+            sb.AppendLine("using Phoenix.Rendering.Shaders;");
+            sb.AppendLine("using Phoenix.AssetImport;");
+            sb.AppendLine();
+            sb.AppendLine($"namespace {namespaceName}");
             sb.AppendLine("{");
-            sb.AppendLine("    private GLShader _shader;");
 
+            sb.AppendLine($"\tpublic partial class {className} : ShaderHelper");
+            sb.AppendLine("\t{");
+            
             foreach (var u in uniforms)
             {
                 if(u.Type == UniformType.Sampler2D)
                 {
-                    sb.AppendLine($"    public ShaderTextureUniform {u.Name} {{get; private set;}}");
-                    continue;
+                    sb.AppendLine($"\t\tpublic ShaderTextureUniform {u.Name} {{get; private set;}}");
                 }
-
-                var csType = MapType(u);
+                else
+                {
+                    var csType = MapType(u);
                 
-                sb.AppendLine($"    public ShaderUniform<{csType}> {u.Name} {{get; private set;}}");
+                    sb.AppendLine($"\t\tpublic ShaderUniform<{csType}> {u.Name} {{get; private set;}}");
+                }
             }
 
             sb.AppendLine();
-            sb.AppendLine($"    public {className}(GLShader shader)");
-            sb.AppendLine("    {");
-            sb.AppendLine("        _shader = shader;");
-
+            sb.AppendLine($"\t\tpublic {className}()");
+            sb.AppendLine("\t\t{");
+            sb.AppendLine($"\t\t\t_shader = AssetLoader.LoadShader(\"{relativePath}\");");
+            sb.AppendLine();
             int slot = 0;
             foreach (var u in uniforms)
             {
                 if(u.Type == UniformType.Sampler2D)
                 {
                     sb.AppendLine(
-                        $"        {u.Name} = new ShaderTextureUniform(_shader, \"{u.Name}\", {slot});");
+                        $"\t\t\t{u.Name} = new ShaderTextureUniform(_shader, \"{u.Name}\", {slot});");
                     slot++;
                 }
                 else
                 {
                     sb.AppendLine(
-                        $"        {u.Name} = new ShaderUniform<{MapType(u)}>(_shader, \"{u.Name}\");");
+                        $"\t\t\t{u.Name} = new ShaderUniform<{MapType(u)}>(_shader, \"{u.Name}\");");
                 }
             }
 
-            sb.AppendLine("    }");
-            sb.AppendLine();
-            
+            sb.AppendLine("\t\t}");
+            sb.AppendLine("\t}");
             sb.AppendLine("}");
-
             return sb.ToString();
         }
 
