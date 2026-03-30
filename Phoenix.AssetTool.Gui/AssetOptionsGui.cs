@@ -110,7 +110,7 @@ namespace Phoenix.AssetTool.Gui
                     if (ImGui.Button("Build"))
                     {
                         SaveOptions(asset);
-                        AssetBuildController.StartBuildAsset(asset, false);
+                        _ = AssetBuildController.StartBuild(asset, false);
                     }
                     ImGui.PopStyleColor();
                 }
@@ -120,7 +120,7 @@ namespace Phoenix.AssetTool.Gui
                     if (ImGui.Button("Rebuild"))
                     {
                         SaveOptions(asset); 
-                        AssetBuildController.StartBuildAsset(asset, true);
+                        _ = AssetBuildController.StartBuild(asset, true);
                     }
                     ImGui.PopStyleColor();
                 }
@@ -183,7 +183,7 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.CheckboxFlags("Improve cache locality", ref flags, (int)PostProcessSteps.ImproveCacheLocality);
                 ImGui.CheckboxFlags("Optimize Graph", ref flags, (int)PostProcessSteps.OptimizeGraph);
                 ImGui.CheckboxFlags("Optimize Meshes", ref flags, (int)PostProcessSteps.OptimizeMeshes);
-                ImGui.CheckboxFlags("Limit bone weights", ref flags, (int)PostProcessSteps.LimitBoneWeights);
+                
                 ImGui.CheckboxFlags("Find Degenerates", ref flags, (int)PostProcessSteps.FindDegenerates);
                 AssetToolGui.ShowHelpTooltip("Likely destroys most models.");
                 ImGui.CheckboxFlags("Fix In Facing normals", ref flags, (int)PostProcessSteps.FixInFacingNormals);

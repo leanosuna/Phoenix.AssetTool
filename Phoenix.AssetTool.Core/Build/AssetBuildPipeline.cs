@@ -14,11 +14,15 @@ namespace Phoenix.AssetTool.Core.Build
         {
             AssetOptions.Save();
 
-            _ = Task.Run(() =>
+            var taskList = new List<Task>
             {
-                ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
-            });
-            var tasks = buildList.Select(status =>
+                Task.Run(() =>
+                {
+                    ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
+                })
+            };
+
+            taskList.AddRange(buildList.Select(status =>
                 Task.Run(() =>
                 {
                     if (token.IsCancellationRequested)
@@ -30,7 +34,7 @@ namespace Phoenix.AssetTool.Core.Build
                     {
                         status.State = AssetBuildState.Building;
                         var built = BuildAsset(status, rebuild);
-                        status.State = built? AssetBuildState.Built : AssetBuildState.Skipped;
+                        status.State = built ? AssetBuildState.Built : AssetBuildState.Skipped;
                     }
                     catch (OperationCanceledException)
                     {
@@ -43,9 +47,9 @@ namespace Phoenix.AssetTool.Core.Build
                         Console.WriteLine($"{Path.GetFileName(status.Asset.RelativePath)}: {status.Error}");
                     }
                 }, token)
-            ).ToArray();
+            ).ToList());
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(taskList);
             
         }
 

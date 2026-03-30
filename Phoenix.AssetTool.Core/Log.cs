@@ -154,7 +154,14 @@ namespace Phoenix.AssetTool.Core
         {
             return $"({v.X}, {v.Y}, {v.Z})";
         }
-
+        public static string ToStrF2(this Vector2 v)
+        {
+            return $"({v.X.ToStrF2()}, {v.Y.ToStrF2()})";
+        }
+        public static string ToStrInt(this Vector2 v)
+        {
+            return $"({v.X.ToStrInt()}, {v.Y.ToStrInt()})";
+        }
         public static string ToStrF2(this float f)
         {
             return f.ToString("F2");

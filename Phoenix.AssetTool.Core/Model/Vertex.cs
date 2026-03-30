@@ -13,7 +13,6 @@ namespace Phoenix.AssetTool.Core.Model
         public Vector3 Bitangent;
         public Vector4 BoneIds;
         public Vector4 Weights;
-        public const int MAX_BONE_INFLUENCE = 4;
-        public const int MAX_BONE_COUNT = 60;
+        
     }
 }

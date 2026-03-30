@@ -16,8 +16,8 @@ namespace Phoenix.AssetTool.Gui
         public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
 
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
-        
-        public static void UpdateDirectory()
+
+        public static void UpdateDirectory(bool res = false)
         {
             _directoryBrowserMeta = ProcessDirectoryRec(Manifest.BaseDirectory);
         }
