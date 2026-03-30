@@ -22,8 +22,7 @@ namespace Phoenix.AssetTool.Cli
                 AssetToolCli.KeepAlive = true;
                 if (AssetToolCli.TryLoadManifest(res))
                 {
-                    StartFileWatcherLoop();
-
+                    
                     foreach(var a in Manifest.Assets)
                         absolutePaths.TryAdd(Path.Combine(Manifest.BaseDirectory.Replace('\\', '/'), a.RelativePath).Replace('\\', '/'), a);
                     
@@ -42,20 +41,6 @@ namespace Phoenix.AssetTool.Cli
             return command;
         }
 
-        static bool watcherLoop = false;
-        public static void StartFileWatcherLoop()
-        {
-            watcherLoop = true;
-            Console.Clear();
-
-            Task.Run(() => {
-                while (watcherLoop)
-                {
-                    //Console.WriteLine("asd");
-                    Thread.Sleep(1);
-                }
-            });
-        }
 
         public static bool IsShaderPair(AssetEntry pair, AssetEntry entry)
         {
@@ -113,6 +98,7 @@ namespace Phoenix.AssetTool.Cli
                     var resStr = buildRes.State.ToString();
 
                     AssetToolCli.StopBuildPendingLoop();
+                    Console.Clear();
                     Console.WriteLine($"Build {resStr}");
                     if (buildRes.State == Core.Build.BuildState.FAILED)
                     {
