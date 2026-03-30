@@ -16,8 +16,8 @@ namespace Phoenix.AssetTool.Gui
         public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
 
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
-        
-        public static void UpdateDirectory()
+
+        public static void UpdateDirectory(bool res = false)
         {
             _directoryBrowserMeta = ProcessDirectoryRec(Manifest.BaseDirectory);
         }
@@ -63,6 +63,17 @@ namespace Phoenix.AssetTool.Gui
                       
 
             AssetBuildGui.DrawBuildWindow(dt);
+            
+            var nameSpace = Manifest.Namespace;
+            ImGui.Text("Generator: Shader helpers namespace");
+            ImGui.InputText("##Shader namespace", ref nameSpace, 30);
+            ImGui.Separator();
+
+            if (Manifest.Namespace != nameSpace)
+            {
+                Manifest.Namespace = nameSpace;
+                Manifest.Save();
+            }
 
             if (ImGui.CollapsingHeader("Assets selected", ImGuiTreeNodeFlags.DefaultOpen))
             {

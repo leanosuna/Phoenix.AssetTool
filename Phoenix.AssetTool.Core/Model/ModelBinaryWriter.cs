@@ -24,20 +24,11 @@ using AssimpTex = Silk.NET.Assimp.Texture;
 using Buffer = System.Buffer;
 namespace Phoenix.AssetTool.Core.Model
 {
+
     public sealed class ModelBinaryWriter
     {
-        public const AssimpPPS DefaultAssimpPost =
-            AssimpPPS.Triangulate |
-            AssimpPPS.GenerateSmoothNormals |
-            AssimpPPS.GenerateUVCoords |
-            AssimpPPS.FindInvalidData |
-            AssimpPPS.FlipUVs |
-            AssimpPPS.JoinIdenticalVertices |
-            AssimpPPS.ImproveCacheLocality |
-            AssimpPPS.SortByPrimitiveType |
-            AssimpPPS.LimitBoneWeights;
-
-
+        const int MAX_BONE_INFLUENCE = 4;
+        
         public static unsafe List<string> Build(AssetBuildStatus status, ModelLoadOptions options, 
             string sourcePath, string outputPath)
         {
@@ -183,7 +174,7 @@ namespace Phoenix.AssetTool.Core.Model
                 bw.Write(part.Name);
                 bw.Write(part.Meshes.Count);
                 //Log.Debug($"part {part.Name}");
-
+                Log.Debug($"vx sz {Marshal.SizeOf<Vertex>()}");
                 foreach (var mesh in part.Meshes)
                 {
                     bw.Write(mesh.Name);
@@ -198,12 +189,16 @@ namespace Phoenix.AssetTool.Core.Model
                     //Log.Debug($"test w{tv.Weights.ToStrF2()} bid {tv.BoneIds.ToStrInt()}");
 
                     bw.Write(mesh.Vertices.Length);
+                    Log.Debug($"tex {mesh.Vertices.Length}");
 
-                    //foreach(var v in mesh.Vertices)
-                    //{
-                    //    Log.Debug($"bid {v.BoneIds.ToStrInt()} w {v.Weights.ToStrF2()}");
-                    //}
-                    bw.Write(mesh.Vertices);
+                    foreach (var v in mesh.Vertices)
+                    {
+                        //Log.Debug($"tex {v.TexCoords.ToStrF2()}");
+                        //Log.Debug($"bid {v.BoneIds.ToStrInt()} w {v.Weights.ToStrF2()}");
+                    }
+                    var sz = bw.Write(mesh.Vertices);
+
+                    Log.Debug($"tex {mesh.Vertices[0].TexCoords.ToStrF2()} sz {sz}");
                 }
             }
             bw.Write(options.ExtractTextures);
@@ -321,7 +316,7 @@ namespace Phoenix.AssetTool.Core.Model
                 Vertex vertex = new Vertex();
 
                 //Console.WriteLine($"mesh bones{mesh->MNumBones}");
-                for (int b = 0; b < Vertex.MAX_BONE_INFLUENCE; b++)
+                for (int b = 0; b < MAX_BONE_INFLUENCE; b++)
                 {
                     vertex.BoneIds[b] = -1;
                     vertex.Weights[b] = 0.0f;
@@ -427,10 +422,10 @@ namespace Phoenix.AssetTool.Core.Model
 
                 List<(int BoneId, float Weight)> topInfluences;
 
-                if (influences.Count > Vertex.MAX_BONE_INFLUENCE)
+                if (influences.Count > MAX_BONE_INFLUENCE)
                 {
                     influences.Sort((a, b) => b.Weight.CompareTo(a.Weight));
-                    topInfluences = influences.Take(Vertex.MAX_BONE_INFLUENCE).ToList();
+                    topInfluences = influences.Take(MAX_BONE_INFLUENCE).ToList();
 
                     float total = topInfluences.Sum(x => x.Weight);
                     if (total > 0)
@@ -443,7 +438,7 @@ namespace Phoenix.AssetTool.Core.Model
                 else
                 {
                     topInfluences = influences;
-                    for (int i = topInfluences.Count; i < Vertex.MAX_BONE_INFLUENCE; i++)
+                    for (int i = topInfluences.Count; i < MAX_BONE_INFLUENCE; i++)
                     {
                         topInfluences.Add((-1, 0.0f));
                     }

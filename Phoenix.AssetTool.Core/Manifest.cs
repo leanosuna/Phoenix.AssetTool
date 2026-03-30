@@ -1,5 +1,4 @@
 ﻿using NativeFileDialogNET;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +14,11 @@ namespace Phoenix.AssetTool.Core
         private static AssetManifest AssetManifest { get; set; } = default!;
         public static List<AssetEntry> Assets => AssetManifest.Assets;
         public static string BaseDirectory => AssetManifest.BaseDirectory;
+        public static string Namespace
+        { 
+            get => AssetManifest.Namespace; 
+            set => AssetManifest.Namespace = value; 
+        }
         public static string AbsolutePath { get; private set; } = default!;
 
         public const string DefaultName = "asset-manifest.json";
@@ -35,7 +39,6 @@ namespace Phoenix.AssetTool.Core
         }
         public static void Create(string path, string name = DefaultName)
         {
-            //var relative = Path.GetRelativePath(Environment.CurrentDirectory, path).Replace("\\", "/");
             var relative = path;
             var am = new AssetManifest()
             {
@@ -52,7 +55,8 @@ namespace Phoenix.AssetTool.Core
         {
             if (!Loaded)
                 return;
-            File.WriteAllText(AbsolutePath, JsonConvert.SerializeObject(AssetManifest, Formatting.Indented));
+
+            JsonIOTools.Save(AbsolutePath, AssetManifest);
         }
         
 
@@ -60,10 +64,11 @@ namespace Phoenix.AssetTool.Core
         {
             var relative = Path.GetRelativePath(Environment.CurrentDirectory, path).Replace("\\", "/");
 
-            //var settings = new JsonSerializerSettings { Formatting = Formatting.Indented, };
-            AssetManifest = JsonConvert.DeserializeObject<AssetManifest>(File.ReadAllText(path))!;
-            if (AssetManifest == null)
+            if (!JsonIOTools.Load(path, out AssetManifest manifest))
                 return false;
+
+            AssetManifest = manifest;
+  
             _onManifestChange.ForEach(a => a.Invoke());
 
             AbsolutePath = path.Replace('\\', '/');

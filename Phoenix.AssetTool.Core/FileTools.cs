@@ -140,7 +140,7 @@ namespace Phoenix.AssetTool.Core
             {
                 ".fbx" or ".gltf" or ".glb" => AssetType.Model,
                 ".png" or ".jpg" or ".jpeg" or ".tga" => AssetType.Texture,
-                ".vert" or ".frag" or ".comp" => AssetType.Shader,
+                ".glsl" or ".shader" or ".vert" or ".frag" or ".comp" => AssetType.Shader,
                 _ => AssetType.Unknown
             };
         }

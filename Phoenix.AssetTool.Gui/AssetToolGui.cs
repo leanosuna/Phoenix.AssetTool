@@ -49,6 +49,7 @@ namespace Phoenix.AssetTool.Gui
             Window.Render += Render;
             Window.FramebufferResize += FramebufferResize;
             Window.Closing += OnClose;
+            
 
             Window.Run();
 

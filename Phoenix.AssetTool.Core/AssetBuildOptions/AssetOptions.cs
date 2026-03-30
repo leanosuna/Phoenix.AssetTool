@@ -1,5 +1,4 @@
-﻿using Newtonsoft.Json;
-using Phoenix.AssetTool.Core.Model;
+﻿using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using System.IO;
@@ -18,15 +17,18 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
             if (!File.Exists(optionsPath))
             {
                 _alo = new AssetLoadOptions();
-                File.WriteAllText(_absolutePath, JsonConvert.SerializeObject(_alo, Formatting.Indented));
+
+                JsonIOTools.Save(_absolutePath, _alo);
             }
             else
             {
-                _alo = JsonConvert.DeserializeObject<AssetLoadOptions>(File.ReadAllText(_absolutePath))!;
+                if(JsonIOTools.Load(_absolutePath, out AssetLoadOptions alo))
+                {
+                    _alo = alo;
+                }
             }
         }
-
-        
+                
         public static ModelLoadOptions OfModel(string path)
         {
             if (!_alo.Models.TryGetValue(path, out var options))
@@ -72,7 +74,8 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
 
         public static void Save()
         {
-            File.WriteAllText(_absolutePath, JsonConvert.SerializeObject(_alo, Formatting.Indented));
+            JsonIOTools.Save(_absolutePath, _alo);
+            //File.WriteAllText(_absolutePath, JsonConvert.SerializeObject(_alo, Formatting.Indented));
         }
 
     }

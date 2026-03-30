@@ -13,8 +13,7 @@ namespace Phoenix.AssetTool.Gui
 {
     public static class AssetBuildGui
     {
-        static AssetManifest manifest;
-
+        
         static float timeout = 5;
         static float timeoutTimer = float.MaxValue;
 
@@ -25,8 +24,8 @@ namespace Phoenix.AssetTool.Gui
                 if (timeoutTimer < timeout)
                     timeoutTimer += deltaTime;
 
-                var total = AssetBuildController.BuildList.Count;
-                var done = AssetBuildController.BuildList.Count(a =>
+                var total = AssetBuildController.Status.BuildList.Count;
+                var done = AssetBuildController.Status.BuildList.Count(a =>
                     a.State == AssetBuildState.Built ||
                     a.State == AssetBuildState.Skipped ||
                     a.State == AssetBuildState.Failed);
@@ -40,14 +39,15 @@ namespace Phoenix.AssetTool.Gui
 
                 ImGui.Separator();
 
-                foreach (var item in AssetBuildController.BuildList)
+                foreach (var item in AssetBuildController.Status.BuildList)
                 {
                     if (item.Asset.Type == AssetType.ExtTexture)
                         continue;
                     DrawBuildItem(item);
                 }
             }
-            //ImGui.End();
+            ImGui.Separator();
+
         }
         private static void DrawBuildItem(AssetBuildStatus item)
         {

@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Phoenix.AssetTool.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\dev\\vs\\PhoenixDev\\Phoenix.TestApp\\Phoenix.TestApp\\Content\\asset-manifest.json auto"
+    }
+  }
+}
