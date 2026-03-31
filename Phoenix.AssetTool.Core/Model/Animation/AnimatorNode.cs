@@ -4,8 +4,8 @@ namespace Phoenix.AssetTool.Core.Model.Animation
 {
     public class AnimatorNode
     {
-        public string Name;
-        public int Level;
+        public string Name { get; internal set; } = default!;
+        public int Level { get; internal set; } = 0;
         public Matrix4x4 BindTransform { get; private set; }
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 

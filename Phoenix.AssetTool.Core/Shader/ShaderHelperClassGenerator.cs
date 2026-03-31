@@ -36,8 +36,8 @@ namespace Phoenix.AssetTool.Core.Shader
         {
             var sb = new StringBuilder();
             sb.AppendLine("using System.Numerics;");
-            sb.AppendLine("using Phoenix.Rendering.Shaders;");
-            sb.AppendLine("using Phoenix.AssetImport;");
+            sb.AppendLine("using Phoenix.Framework.Rendering.Shaders;");
+            sb.AppendLine("using Phoenix.Framework.AssetImport;");
             sb.AppendLine();
             sb.AppendLine($"namespace {namespaceName}");
             sb.AppendLine("{");

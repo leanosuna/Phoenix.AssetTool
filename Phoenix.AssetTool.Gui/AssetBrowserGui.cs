@@ -50,14 +50,14 @@ namespace Phoenix.AssetTool.Gui
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
             if (ImGui.Button("Build All"))
             {
-                AssetBuildController.StartBuild(rebuild:false, UpdateDirectory);
+                _ = AssetBuildController.StartBuild(rebuild:false, UpdateDirectory);
             }
             ImGui.PopStyleColor();
             ImGui.SameLine();
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
             if (ImGui.Button("Rebuild All"))
             {
-                AssetBuildController.StartBuild(rebuild: true, UpdateDirectory);
+                _ = AssetBuildController.StartBuild(rebuild: true, UpdateDirectory);
             }
             ImGui.PopStyleColor();
                       
@@ -66,7 +66,7 @@ namespace Phoenix.AssetTool.Gui
             
             var nameSpace = Manifest.Namespace;
             ImGui.Text("Generator: Shader helpers namespace");
-            ImGui.InputText("##Shader namespace", ref nameSpace, 30);
+            ImGui.InputText("##Shader namespace", ref nameSpace, 100);
             ImGui.Separator();
 
             if (Manifest.Namespace != nameSpace)

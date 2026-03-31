@@ -10,7 +10,6 @@ namespace Phoenix.AssetTool.Core.Shader
     public static class GLCompiler
     {
         private static GL GL = default!;
-        private static ContextState _contextState = ContextState.Invalid;
         private static IWindow _window = default!;
         public static void Set(GL gl)
         {
@@ -86,9 +85,7 @@ namespace Phoenix.AssetTool.Core.Shader
 
         public static void Init()
         {
-            //return;
-            _contextState = ContextState.Creating;
-
+            
             var options = WindowOptions.Default;
             options.Size = new Vector2D<int>(1, 1);
             options.IsVisible = false;
@@ -98,7 +95,6 @@ namespace Phoenix.AssetTool.Core.Shader
             _window = Window.Create(options);
             _window.Initialize();
             GL = GL.GetApi(_window);
-            _contextState = ContextState.Set;
         }
         public static void Dispose()
         {
