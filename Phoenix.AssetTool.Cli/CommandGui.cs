@@ -19,13 +19,12 @@ namespace Phoenix.AssetTool.Cli
 
             command.SetAction(async res =>
             {
-                if (AssetToolCli.TryLoadManifest(res))
-                {
-                    AssetToolGui.Main();
-                }
-                
+                var found = AssetToolCli.TryLoadManifest(res, true);
+                var man = found ? "[manifest found]" : "[manifest not found]";
+                Console.WriteLine($"opening GUI {man}");
+                AssetToolGui.Main();
 
-                
+
             });
 
             return command;

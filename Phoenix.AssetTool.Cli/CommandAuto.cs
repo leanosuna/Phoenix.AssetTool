@@ -19,10 +19,12 @@ namespace Phoenix.AssetTool.Cli
 
             command.SetAction(static async res =>
             {
-                AssetToolCli.KeepAlive = true;
                 if (AssetToolCli.TryLoadManifest(res))
                 {
-                    
+                    AssetToolCli.KeepAlive = true;
+
+                    Console.WriteLine("Auto mode enabled.");
+
                     foreach(var a in Manifest.Assets)
                         absolutePaths.TryAdd(Path.Combine(Manifest.BaseDirectory.Replace('\\', '/'), a.RelativePath).Replace('\\', '/'), a);
                     

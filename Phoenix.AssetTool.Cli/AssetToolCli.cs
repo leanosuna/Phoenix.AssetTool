@@ -14,22 +14,25 @@ namespace AssetTool.Cli
     {
         public const string DefaultPath = "asset-manifest.json";
         public static bool KeepAlive;
-        public static bool TryLoadManifest(ParseResult res)
+        public static bool TryLoadManifest(ParseResult res, bool silent = false)
         {
             var manFileInfo = res.GetValue(_argumentManifest);
             if (manFileInfo == null)
             {
-                Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+                if(!silent)
+                    Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
                 return false;
             }
             if (!manFileInfo.Exists)
             {
-                Console.Error.WriteLine($"manifest not found. \n{manFileInfo} ");
+                if (!silent)
+                    Console.Error.WriteLine($"manifest not found. \n{manFileInfo} ");
                 return false;
             }
             if (!Manifest.Load(manFileInfo.FullName))
             {
-                Console.Error.WriteLine($"manifest failed to load.");
+                if (!silent)
+                    Console.Error.WriteLine($"manifest failed to load.");
                 return false;
             }
             return true;
@@ -41,7 +44,9 @@ namespace AssetTool.Cli
 
             _argumentManifest = new("manifest")
             {
-                Description = "The asset manifest file"
+                Description = "The asset manifest file",
+                Arity = ArgumentArity.ZeroOrOne
+                //DefaultValueFactory = ()=> { return new FileInfo("a"); }
             };
             
             RootCommand rootCommand = new("Register and build assets to be used in your Phoenix project");
