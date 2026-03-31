@@ -21,7 +21,7 @@ namespace Phoenix.AssetTool.Gui
             _input = _window.CreateInput();
 
             //TODO: handle all mice/keyboard inputs
-            _keyboard = _input.Keyboards.FirstOrDefault();
+            _keyboard = _input.Keyboards.FirstOrDefault()!;
             //for (int i = 0; i < input.Mice.Count; i++)
             //{
             //    input.Mice[i].Cursor.CursorMode = CursorMode.Raw;
@@ -30,7 +30,7 @@ namespace Phoenix.AssetTool.Gui
             //}
 
 
-            _mouse = _input.Mice.FirstOrDefault();
+            _mouse = _input.Mice.FirstOrDefault()!;
             _mouse.Scroll += OnMouseWheel;
             _mouse.Cursor.CursorMode = CursorMode.Normal;
             _mouse.Position = (Vector2)_window.Position + (Vector2)_window.Size / 2;

@@ -10,7 +10,6 @@ namespace Phoenix.AssetTool.Cli
 {
     internal static class CommandBuild
     {
-        static bool pendingLoop = false;
         public static Command Setup()
         {
             

@@ -20,19 +20,14 @@ namespace Phoenix.AssetTool.Gui
 {
     public class AssetToolGui
     {
-        static IWindow Window;
-        static ImGuiController _controller;
-        public static GL GL;
-        static InputManager InputManager;
+        static IWindow Window = default!;
+        static ImGuiController _controller = default!;
+        public static GL GL = default!;
+        static InputManager InputManager = default!;
         private static Dictionary<int, ImFontPtr> _fonts = new Dictionary<int, ImFontPtr>();
 
         static int WindowWidth => Window.Size.X;
         static int WindowHeight => Window.Size.Y;
-
-        static string DefaultManifestName = "asset-manifest.json";
-        static AssetManifest assetManifest;
-        static string assetManifestPath;
-        static bool manifestLoaded = false;
         public static void Main()
         {
             var options = WindowOptions.Default;
@@ -129,7 +124,7 @@ namespace Phoenix.AssetTool.Gui
             ImGui.SetNextWindowSize(new Vector2(WindowWidth / 2, WindowHeight));
             ImGui.Begin("main tool ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize);
             
-            if(manifestLoaded)
+            if(Manifest.Loaded)
             {
                 ImGui.Text("Files: "); SL();
                 ImGui.ColorButton("", FileTools.ColorWhite,ImGuiColorEditFlags.NoInputs| ImGuiColorEditFlags.NoTooltip); SL();

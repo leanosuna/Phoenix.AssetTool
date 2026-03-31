@@ -78,7 +78,6 @@ namespace AssetTool.Cli
                 while (pendingLoop)
                 {
                     Console.Clear();
-                    //Console.SetCursorPosition(0, 0);
                     StringBuilder sb = new StringBuilder();
                     sb.Append($"Building");
                     for (int i = 0; i < loading; i++)
@@ -90,7 +89,7 @@ namespace AssetTool.Cli
                     loading %= 4;
                     Thread.Sleep(250);
                 }
-                //Console.Clear();
+                
             });
         }
         public static void StopBuildPendingLoop()

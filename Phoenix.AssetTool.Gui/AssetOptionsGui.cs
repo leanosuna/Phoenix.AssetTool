@@ -23,21 +23,10 @@ namespace Phoenix.AssetTool.Gui
 {
     public static class AssetOptionsGui
     {
+        static ModelLoadOptions modelOptions = default!;
+        static TextureLoadOptions textureOptions = default!;
+        static ShaderLoadOptions shaderOptions = default!;
 
-        //static AssetLoadOptions assetLoadOptionsCache = new AssetLoadOptions();
-
-        static AssetManifest assetManifest = default!;
-
-        
-        static ModelLoadOptions modelOptions;
-        static TextureLoadOptions textureOptions;
-        static ShaderLoadOptions shaderOptions;
-
-
-        public static void SetManifest(AssetManifest manifest)
-        {
-            assetManifest = manifest;
-        }
         public static void Draw((AssetEntry? asset, AssetType type, string path) sfo)
         {
             var asset = sfo.asset;
@@ -47,19 +36,19 @@ namespace Phoenix.AssetTool.Gui
             if (path == "")
                 return;
             
-            DrawFileHeader(asset, type, path);
+            DrawFileHeader(asset!, type, path);
             
             switch (type)
             {
                 case AssetType.Model:
                     
-                    DrawModelOptions(asset,path);
+                    DrawModelOptions(asset!,path);
                     break;
                 case AssetType.Texture:
-                    DrawTextureOptions(asset, path);
+                    DrawTextureOptions(asset!, path);
                     break;
                 case AssetType.Shader:
-                    DrawShaderOptions(asset, path);
+                    DrawShaderOptions(asset!, path);
                     break;
             }
         }
