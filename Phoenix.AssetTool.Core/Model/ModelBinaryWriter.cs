@@ -34,6 +34,14 @@ namespace Phoenix.AssetTool.Core.Model
         {
             List<string> texNames = new List<string>();
 
+            Console.WriteLine($"BaseDir: {AppContext.BaseDirectory}");
+            Console.WriteLine($"CurrentDir: {Environment.CurrentDirectory}");
+            if(OperatingSystem.IsLinux())
+            {
+                var path = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libassimp.so.5");
+                NativeLibrary.Load(path);
+            }
+
             var assimp = Assimp.GetApi();
             var scene = assimp.ImportFile(sourcePath, options.AssimpFlags);
 
