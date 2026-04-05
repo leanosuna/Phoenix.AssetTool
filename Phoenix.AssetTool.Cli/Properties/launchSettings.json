@@ -2,7 +2,7 @@
   "profiles": {
     "Phoenix.AssetTool.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "build"
+      "commandLineArgs": "\" \" list"
     }
   }
 }

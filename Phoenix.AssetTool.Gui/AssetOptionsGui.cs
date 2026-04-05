@@ -231,7 +231,12 @@ namespace Phoenix.AssetTool.Gui
             DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
             if (result == DialogResult.Okay && files != null && files.Length > 0)
             {
-                options.AnimationFiles = files.ToList();
+                
+                var relativeFiles = files.Select(f =>
+                    Path.GetRelativePath(Manifest.BaseDirectory, f).Replace("\\", "/")
+                ).ToList();
+
+                options.AnimationFiles = relativeFiles;
                 AssetOptions.Set(path, options);
             }
             else

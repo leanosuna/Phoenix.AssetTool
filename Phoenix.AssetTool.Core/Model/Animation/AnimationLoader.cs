@@ -15,6 +15,8 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         private static unsafe Animation LoadAnimation(string path, AnimationLoadData loadData)
         {
             var name = Path.GetFileNameWithoutExtension(path);
+
+            path = Path.Combine(Manifest.BaseDirectory , path).Replace("\\", "/");
             var assimp = Assimp.GetApi();
             var scene = assimp.ImportFile(path, (uint)(0));
 

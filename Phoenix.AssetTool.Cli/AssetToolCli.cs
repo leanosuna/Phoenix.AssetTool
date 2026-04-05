@@ -16,25 +16,55 @@ namespace AssetTool.Cli
         public static bool KeepAlive;
         public static bool TryLoadManifest(ParseResult res, bool silent = false)
         {
-            var manFileInfo = res.GetValue(_argumentManifest);
+            FileInfo? manFileInfo = null;
+            try
+            {
+                manFileInfo = res.GetValue(_argumentManifest);
+            }
+            catch(Exception e)
+            {
+                Console.Error.WriteLine("manifest argument error.");
+                return false;
+            }
+
             if (manFileInfo == null)
             {
                 if(!silent)
                     Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
                 return false;
             }
-            if (!manFileInfo.Exists)
+
+
+            var absolutePath = manFileInfo.FullName;
+            if(string.IsNullOrEmpty(absolutePath))
             {
                 if (!silent)
-                    Console.Error.WriteLine($"manifest not found. \n{manFileInfo} ");
+                    Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+
                 return false;
             }
-            if (!Manifest.Load(manFileInfo.FullName))
+            
+
+            if (!File.Exists(absolutePath))
+            {
+                if (!silent)
+                    Console.Error.WriteLine($"manifest file not found at [{manFileInfo}] ");
+                return false;
+            }
+            var fileName = Path.GetFileName(absolutePath);
+
+            if(!silent)
+                Console.WriteLine($"Loading {fileName}");
+
+            if (!Manifest.Load(absolutePath))
             {
                 if (!silent)
                     Console.Error.WriteLine($"manifest failed to load.");
                 return false;
             }
+            if (!silent)
+                Console.WriteLine($"Found {fileName}");
+
             return true;
         }
         static Argument<FileInfo> _argumentManifest = default!;

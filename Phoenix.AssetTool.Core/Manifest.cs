@@ -9,11 +9,11 @@ namespace Phoenix.AssetTool.Core
 {
     public static class Manifest
     {
+        private static AssetManifest AssetManifest { get; set; } = default!;
         public static bool Loaded => AssetManifest != null;
         public static string Name { get; private set; } = default!;
-        private static AssetManifest AssetManifest { get; set; } = default!;
         public static List<AssetEntry> Assets => AssetManifest.Assets;
-        public static string BaseDirectory => AssetManifest.BaseDirectory;
+        public static string BaseDirectory { get; private set; } = default!;
         public static string Namespace
         { 
             get => AssetManifest.Namespace; 
@@ -37,19 +37,22 @@ namespace Phoenix.AssetTool.Core
                 Save();
             }
         }
-        public static void Create(string path, string name = DefaultName)
+        public static bool Create(string dir, string name = DefaultName)
         {
-            var relative = path;
-            var am = new AssetManifest()
-            {
-                BaseDirectory = relative
-            };
+            if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(name))
+                return false;
+
+            var am = new AssetManifest();
+            
             AssetManifest = am;
             _onManifestChange.ForEach(a => a.Invoke());
 
-            AbsolutePath = Path.Combine(path, name).Replace("\\","/");
+            BaseDirectory = dir.Replace("\\", "/");
+            AbsolutePath = Path.Combine(dir, name).Replace("\\","/");
             Name = Path.GetFileName(AbsolutePath);
             Save();
+
+            return true;
         }
         public static void Save()
         {
@@ -62,17 +65,18 @@ namespace Phoenix.AssetTool.Core
 
         public static bool Load(string path)
         {
-            var relative = Path.GetRelativePath(Environment.CurrentDirectory, path).Replace("\\", "/");
+            if (string.IsNullOrEmpty(path))
+                return false;
 
             if (!JsonIOTools.Load(path, out AssetManifest manifest))
                 return false;
 
             AssetManifest = manifest;
-  
-            _onManifestChange.ForEach(a => a.Invoke());
-
+            BaseDirectory = Path.GetDirectoryName(path)!;
             AbsolutePath = path.Replace('\\', '/');
             Name = Path.GetFileName(AbsolutePath);
+            
+            _onManifestChange.ForEach(a => a.Invoke());
 
             return true;
         }
