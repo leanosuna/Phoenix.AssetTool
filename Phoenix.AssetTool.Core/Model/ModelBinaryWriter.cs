@@ -180,7 +180,7 @@ namespace Phoenix.AssetTool.Core.Model
                 bw.Write(part.Name);
                 bw.Write(part.Meshes.Count);
                 //Log.Debug($"part {part.Name}");
-                Log.Debug($"vx sz {Marshal.SizeOf<Vertex>()}");
+                //Log.Debug($"vx sz {Marshal.SizeOf<Vertex>()}");
                 foreach (var mesh in part.Meshes)
                 {
                     bw.Write(mesh.Name);
@@ -195,7 +195,7 @@ namespace Phoenix.AssetTool.Core.Model
                     //Log.Debug($"test w{tv.Weights.ToStrF2()} bid {tv.BoneIds.ToStrInt()}");
 
                     bw.Write(mesh.Vertices.Length);
-                    Log.Debug($"tex {mesh.Vertices.Length}");
+                    //Log.Debug($"tex {mesh.Vertices.Length}");
 
                     foreach (var v in mesh.Vertices)
                     {
@@ -204,7 +204,7 @@ namespace Phoenix.AssetTool.Core.Model
                     }
                     var sz = bw.Write(mesh.Vertices);
 
-                    Log.Debug($"tex {mesh.Vertices[0].TexCoords.ToStrF2()} sz {sz}");
+                    //Log.Debug($"tex {mesh.Vertices[0].TexCoords.ToStrF2()} sz {sz}");
                 }
             }
             bw.Write(options.ExtractTextures);
