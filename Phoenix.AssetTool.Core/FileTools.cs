@@ -3,9 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Reflection;
-using System.Runtime.Intrinsics.Arm;
-using System.Text;
-
 namespace Phoenix.AssetTool.Core
 {
     public static class FileTools
@@ -133,16 +130,26 @@ namespace Phoenix.AssetTool.Core
 
             return built ? ColorGreen : ColorYellow;
         }
-
+        static string[] models = [".fbx", ".gltf", ".glb", ".obj", ".dae", ".stl"];
+        static string[] textures = [".png", ".jpg", ".jpeg", ".tga"];
+        static string[] shaders = [".glsl", ".shader", ".vert", ".frag", ".comp"];
+        //TODO: verify 3DS, PLY, STL
+        //CAD STEP(.stp), IFC, DXF
+        //Game Engines    MD2, MD3, MDL, X, B3D, MS3D
+        //Motion Capture BVH, ASF/AMC
+        //3D Printing	3MF, AMF
         public static AssetType GuessType(string path)
         {
-            return Path.GetExtension(path).ToLowerInvariant() switch
-            {
-                ".fbx" or ".gltf" or ".glb" => AssetType.Model,
-                ".png" or ".jpg" or ".jpeg" or ".tga" => AssetType.Texture,
-                ".glsl" or ".shader" or ".vert" or ".frag" or ".comp" => AssetType.Shader,
-                _ => AssetType.Unknown
-            };
+            var type = Path.GetExtension(path).ToLowerInvariant();
+
+            if (models.Contains(type))
+                return AssetType.Model;
+            if (textures.Contains(type))
+                return AssetType.Texture;
+            if (shaders.Contains(type))
+                return AssetType.Shader;
+
+            return AssetType.Unknown;
         }
 
         public static string ExtractPath(string fileName, string assemblyPath)

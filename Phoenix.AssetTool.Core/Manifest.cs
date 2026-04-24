@@ -45,11 +45,12 @@ namespace Phoenix.AssetTool.Core
             var am = new AssetManifest();
             
             AssetManifest = am;
-            _onManifestChange.ForEach(a => a.Invoke());
 
             BaseDirectory = dir.Replace("\\", "/");
             AbsolutePath = Path.Combine(dir, name).Replace("\\","/");
             Name = Path.GetFileName(AbsolutePath);
+
+            _onManifestChange.ForEach(a => a.Invoke());
             Save();
 
             return true;

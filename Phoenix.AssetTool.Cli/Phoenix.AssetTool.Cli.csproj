@@ -17,6 +17,7 @@
     <Product>Phoenix.AssetTool</Product>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Version>1.0.1-alpha-1</Version>
   </PropertyGroup>
 
   <ItemGroup>
