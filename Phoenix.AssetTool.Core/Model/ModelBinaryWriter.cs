@@ -54,7 +54,7 @@ namespace Phoenix.AssetTool.Core.Model
             var modelProcessData = new ModelProcessData { Status = status, Scene = scene, LoadOptions = options };
 
             ProcessNode(scene->MRootNode, Matrix4x4.Identity, modelProcessData);
-
+            
             status.Step = 0;
             status.MaxSteps = 1;
 
@@ -279,19 +279,15 @@ namespace Phoenix.AssetTool.Core.Model
             var meshes = new List<Mesh>();
 
             var nTransform = node->MTransformation;
-            nTransform = Matrix4x4.Transpose(nTransform);
             Matrix4x4 currentTransform = parentTransform * nTransform;
-            var relativeTransform = currentTransform;
+            var absoluteTransform = Matrix4x4.Transpose(currentTransform);
             
             for (var i = 0; i < node->MNumMeshes; i++)
             {
                 var assimpMesh = modelProcessData.Scene->MMeshes[node->MMeshes[i]];
 
-                var mesh = ProcessMesh(assimpMesh, relativeTransform, modelProcessData);
-                mesh.Name = assimpMesh->MName;
-                mesh.AABB = assimpMesh->MAABB;
-                mesh.Transform = relativeTransform;
-
+                var mesh = ProcessMesh(assimpMesh, absoluteTransform, modelProcessData);
+                
                 meshes.Add(mesh);
 
             }
@@ -309,7 +305,7 @@ namespace Phoenix.AssetTool.Core.Model
             }
         }
         
-        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 relativeTransform, ModelProcessData modelProcessData)
+        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 absoluteTransform, ModelProcessData modelProcessData)
         {
             // data to fill
             List<Vertex> vertices = new List<Vertex>();
@@ -377,7 +373,7 @@ namespace Phoenix.AssetTool.Core.Model
             var name = "no-name";
             if (!string.IsNullOrEmpty(mesh->MName))
                 name = mesh->MName;
-            return new Mesh(vertices, indices, relativeTransform, name, aabb, materialIndex);
+            return new Mesh(vertices, indices, absoluteTransform, name, aabb, materialIndex);
         }
 
         private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, ModelProcessData modelProcessData)
