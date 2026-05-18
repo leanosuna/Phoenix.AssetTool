@@ -2,7 +2,7 @@
   "profiles": {
     "Phoenix.AssetTool.Cli": {
       "commandName": "Project",
-      "commandLineArgs": "\" \" list"
+      "commandLineArgs": "C:\\dev\\vs\\PhoenixDev\\Slides\\Slides\\Content\\asset-manifest.json gui"
     }
   }
 }

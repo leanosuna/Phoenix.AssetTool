@@ -17,9 +17,14 @@ namespace Phoenix.AssetTool.Core.Model
             PostProcessSteps.JoinIdenticalVertices |
             PostProcessSteps.ImproveCacheLocality |
             PostProcessSteps.SortByPrimitiveType |
-            PostProcessSteps.LimitBoneWeights);
+            PostProcessSteps.LimitBoneWeights |
+            PostProcessSteps.CalculateTangentSpace
+            );
 
         public bool IsAnimated { get; set; } = false;
+        public bool Tangents =>
+                ((PostProcessSteps)AssimpFlags).HasFlag(PostProcessSteps.CalculateTangentSpace);
+
         public List<string> AnimationFiles { get; set; } = new();
     }
 }

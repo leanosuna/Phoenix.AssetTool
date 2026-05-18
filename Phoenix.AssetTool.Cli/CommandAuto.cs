@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.Text;
+using System.Timers;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Phoenix.AssetTool.Cli
 {
@@ -93,15 +95,18 @@ namespace Phoenix.AssetTool.Cli
 
                     buildList.Clear();
 
+                    Console.Clear();
                     AssetToolCli.StartBuildPendingLoop();
-
                     var buildRes = await AssetBuildController.StartBuild(buildCpy, true);
                     
                     var resStr = buildRes.State.ToString();
 
                     AssetToolCli.StopBuildPendingLoop();
-                    Console.Clear();
-                    Console.WriteLine($"Build {resStr}");
+
+                    var now = DateTime.Now;
+                    var time = $"{now:HH:mm:ss}";
+
+                    Console.WriteLine($"[{time}] Build {resStr}");
                     if (buildRes.State == Core.Build.BuildState.FAILED)
                     {
                         Console.WriteLine(buildRes.Message);

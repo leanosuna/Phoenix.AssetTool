@@ -19,21 +19,23 @@ namespace Phoenix.AssetTool.Gui
 
         public static void DrawBuildWindow(float deltaTime)
         {
+            var total = AssetBuildController.Status.BuildList.Count;
+            var done = AssetBuildController.Status.BuildList.Count(a =>
+                a.State == AssetBuildState.Built ||
+                a.State == AssetBuildState.Skipped ||
+                a.State == AssetBuildState.Failed);
+            
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
+            if (total > 0 && done != total)
+                ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
+            ImGui.PopStyleColor();
+
             if (ImGui.CollapsingHeader("build info", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 if (timeoutTimer < timeout)
                     timeoutTimer += deltaTime;
 
-                var total = AssetBuildController.Status.BuildList.Count;
-                var done = AssetBuildController.Status.BuildList.Count(a =>
-                    a.State == AssetBuildState.Built ||
-                    a.State == AssetBuildState.Skipped ||
-                    a.State == AssetBuildState.Failed);
 
-                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
-                if (total > 0 && done != total)
-                    ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
-                ImGui.PopStyleColor();
                 if (done == total)
                     timeoutTimer = 0;
 

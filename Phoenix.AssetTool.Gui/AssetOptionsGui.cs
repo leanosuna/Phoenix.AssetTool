@@ -164,7 +164,8 @@ namespace Phoenix.AssetTool.Gui
                 }
                 //TODO: check missing
                 ImGui.CheckboxFlags("Generate UV", ref flags, (int)PostProcessSteps.GenerateUVCoords);
-
+                ImGui.CheckboxFlags("Calculate Tangent Space", ref flags, (int)PostProcessSteps.CalculateTangentSpace);
+                
                 ImGui.CheckboxFlags("Join Vertices", ref flags, (int)PostProcessSteps.JoinIdenticalVertices);
                 ImGui.CheckboxFlags("Sort by Type", ref flags, (int)PostProcessSteps.SortByPrimitiveType);
 
@@ -249,7 +250,7 @@ namespace Phoenix.AssetTool.Gui
             ImGui.Text($"TEXTURE LOAD OPTIONS");
 
             textureOptions = AssetOptions.OfTexture(path);
-            
+
             var options = textureOptions;
             var mipEnabled = options.GenerateMipMaps;
 
@@ -257,8 +258,16 @@ namespace Phoenix.AssetTool.Gui
 
             var compList = options.Format.Strings();
 
-            ImGui.Checkbox("Generate mipmaps", ref mipEnabled);            
-            options.GenerateMipMaps = mipEnabled;
+            if (ImGui.Checkbox("Generate mipmaps", ref mipEnabled))
+            {
+                options.GenerateMipMaps = mipEnabled;
+                if(mipEnabled)
+                {
+                    options.Min = TextureFilter.LinearMipmapLinear;
+                    options.Mag = TextureFilter.Linear;
+                }
+            }
+
 
             ImGui.Text("Compression Format");
             if (ImGui.ListBox("##1", ref current, compList, compList.Length))

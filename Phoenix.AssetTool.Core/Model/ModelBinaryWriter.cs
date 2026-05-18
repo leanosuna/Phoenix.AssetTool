@@ -172,6 +172,7 @@ namespace Phoenix.AssetTool.Core.Model
             bw.Write("PHXM");   // custom file identifier
             bw.Write((uint)1);  // version
             bw.Write(options.IsAnimated);
+            bw.Write(options.Tangents);
             bw.Write(parts.Count);
             //Log.Debug($"parts {parts.Count}");
 
@@ -337,7 +338,7 @@ namespace Phoenix.AssetTool.Core.Model
                 // bitangent
                 if (mesh->MBitangents != null)
                     vertex.Bitangent = mesh->MBitangents[i];
-
+    
                 // texture coordinates
                 if (mesh->MTextureCoords[0] != null) // does the mesh contain texture coordinates?
                 {

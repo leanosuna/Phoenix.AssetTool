@@ -16,7 +16,7 @@ namespace Phoenix.AssetTool.Core.Texture
 
         public TextureWrap WrapS { get; set; } = TextureWrap.Repeat;
         public TextureWrap WrapT { get; set; } = TextureWrap.Repeat;
-        public TextureFilter Min { get; set; } = TextureFilter.Linear;
+        public TextureFilter Min { get; set; } = TextureFilter.LinearMipmapLinear;
         public TextureFilter Mag { get; set; } = TextureFilter.Linear;
 
     }
