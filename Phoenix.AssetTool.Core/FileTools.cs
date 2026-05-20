@@ -133,6 +133,7 @@ namespace Phoenix.AssetTool.Core
         static string[] models = [".fbx", ".gltf", ".glb", ".obj", ".dae", ".stl"];
         static string[] textures = [".png", ".jpg", ".jpeg", ".tga"];
         static string[] shaders = [".glsl", ".shader", ".vert", ".frag", ".comp"];
+        static string[] videos = [".mp4", ".webm", ".avi", ".mkv", ".mov"];
         //TODO: verify 3DS, PLY, STL
         //CAD STEP(.stp), IFC, DXF
         //Game Engines    MD2, MD3, MDL, X, B3D, MS3D
@@ -148,6 +149,8 @@ namespace Phoenix.AssetTool.Core
                 return AssetType.Texture;
             if (shaders.Contains(type))
                 return AssetType.Shader;
+            if (videos.Contains(type))
+                return AssetType.Video;
 
             return AssetType.Unknown;
         }

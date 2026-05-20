@@ -10,6 +10,7 @@ namespace Phoenix.AssetTool.Core
         Texture,
         ExtTexture,
         Shader,
+        Video,
         Unknown
     }
 }

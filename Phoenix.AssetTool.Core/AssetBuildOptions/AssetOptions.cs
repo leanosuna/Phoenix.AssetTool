@@ -1,6 +1,7 @@
 ﻿using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
+using Phoenix.AssetTool.Core.Video;
 using System.IO;
 
 namespace Phoenix.AssetTool.Core.AssetBuildOptions
@@ -53,6 +54,14 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
 
             return options;
         }
+        public static VideoLoadOptions OfVideo(string path)
+        {
+            if (!_alo.Videos.TryGetValue(path, out var options))
+                if (!_alo.Videos.TryAdd(path, options = new VideoLoadOptions()))
+                    throw new Exception($"try add video {path} failed");
+
+            return options;
+        }
 
         public static void Set<T>(string path, T options)
         {
@@ -66,6 +75,9 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
                     break;
                 case ShaderLoadOptions sh:
                     _alo.Shaders[path] = sh;
+                    break;
+                case VideoLoadOptions video:
+                    _alo.Videos[path] = video;
                     break;
 
             }

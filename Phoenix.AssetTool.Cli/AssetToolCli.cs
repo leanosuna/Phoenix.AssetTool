@@ -1,4 +1,6 @@
-﻿using Phoenix.AssetTool.Cli;
+﻿using FFMpegCore;
+using FFMpegCore.Extensions.Downloader;
+using Phoenix.AssetTool.Cli;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
 using Phoenix.AssetTool.Core.Build;
@@ -70,6 +72,8 @@ namespace AssetTool.Cli
         static Argument<FileInfo> _argumentManifest = default!;
         static void Main(string[] args)
         {
+            InitFFMpeg();
+
             Manifest.RegisterNotifyAction(() => { AssetOptions.Init(); });
 
             _argumentManifest = new("manifest")
@@ -103,6 +107,22 @@ namespace AssetTool.Cli
                 Console.ReadLine();
         }
         static bool pendingLoop = false;
+        static void InitFFMpeg()
+        {
+            var binaryFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ffmpeg");
+            GlobalFFOptions.Configure(options => options.BinaryFolder = binaryFolder);
+
+            var ffmpegPath = Path.Combine(binaryFolder, "ffmpeg.exe");
+            var ffprobePath = Path.Combine(binaryFolder, "ffprobe.exe");
+
+            if (!File.Exists(ffmpegPath) || !File.Exists(ffprobePath))
+            {
+                Console.WriteLine("Downloading FFmpeg binaries...");
+                Directory.CreateDirectory(binaryFolder);
+                FFMpegDownloader.DownloadBinaries().Wait();
+                Console.WriteLine("FFmpeg binaries downloaded.");
+            }
+        }
         public static void StartBuildPendingLoop()
         {
             pendingLoop = true;

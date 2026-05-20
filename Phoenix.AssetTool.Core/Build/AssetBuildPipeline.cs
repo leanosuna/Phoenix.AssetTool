@@ -2,6 +2,7 @@
 using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
+using Phoenix.AssetTool.Core.Video;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -86,6 +87,11 @@ namespace Phoenix.AssetTool.Core.Build
                 case AssetType.Texture:
                     var texOptions = AssetOptions.OfTexture(asset.RelativePath);
                     TextureBinaryWriter.Build(status, texOptions, sourcePath, outputPath);
+                    break;
+
+                case AssetType.Video:
+                    var videoOptions = AssetOptions.OfVideo(asset.RelativePath);
+                    VideoBinaryWriter.Build(status, videoOptions, sourcePath, outputPath);
                     break;
 
                 //case AssetType.Shader:
