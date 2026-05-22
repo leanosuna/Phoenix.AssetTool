@@ -18,6 +18,7 @@ namespace Phoenix.AssetTool.Core.Texture
         public TextureWrap WrapT { get; set; } = TextureWrap.Repeat;
         public TextureFilter Min { get; set; } = TextureFilter.LinearMipmapLinear;
         public TextureFilter Mag { get; set; } = TextureFilter.Linear;
+        public float Anisotropic { get; set; } = 0;
 
     }
 }

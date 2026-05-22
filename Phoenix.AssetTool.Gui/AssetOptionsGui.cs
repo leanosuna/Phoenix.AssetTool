@@ -297,6 +297,27 @@ namespace Phoenix.AssetTool.Gui
             if (ImGui.ListBox("##5", ref current5, filterList, 2))
                 options.Mag = options.Mag.At(current5);
 
+            var anisotropic = options.Anisotropic;
+            var enabled = anisotropic >= 0;
+
+            if(ImGui.Checkbox("Enable Anisotropic", ref enabled))
+            {
+                options.Anisotropic = enabled ? 0f:-1f; 
+            }
+            ImGui.SameLine();
+            ImGui.TextDisabled("0: max supported by gpu");
+            if (enabled)
+            {
+                ImGui.Text("Max level");
+                if (ImGui.DragFloat("##6", ref anisotropic, 1, 0, 16))
+                    options.Anisotropic = anisotropic;
+
+
+            }
+
+            
+
+
         }
         public static void DrawShaderOptions(AssetEntry asset, string path)
         {

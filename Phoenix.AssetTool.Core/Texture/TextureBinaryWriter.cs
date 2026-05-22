@@ -89,6 +89,7 @@ namespace Phoenix.AssetTool.Core.Texture
             bw.Write((int)options.WrapT);
             bw.Write((int)options.Min);
             bw.Write((int)options.Mag);
+            bw.Write((int)options.Anisotropic);
 
             bw.Write((byte)options.Format);
             bw.Write(mipCount);
