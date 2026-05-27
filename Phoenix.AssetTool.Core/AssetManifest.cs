@@ -8,5 +8,6 @@ namespace Phoenix.AssetTool.Core
     {
         public List<AssetEntry> Assets { get; set; } = new();
         public string Namespace { get; set; } = "Phoenix.Framework.ShaderHelpers";
+        public bool DarkTheme { get; set; } = true;
     }
 }

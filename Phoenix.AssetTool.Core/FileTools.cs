@@ -7,11 +7,17 @@ namespace Phoenix.AssetTool.Core
 {
     public static class FileTools
     {
-        public static readonly Vector4 ColorWhite = new(1f, 1f, 1f, 1f);
+        public static readonly Vector4 ColorWhite = new(1f, 1f, 1f, 1f); 
         public static readonly Vector4 ColorYellow = new(1f, 1f, 0f, 1f);
         public static readonly Vector4 ColorGreen = new(0f, 1f, 0f, 1f);
         public static readonly Vector4 ColorRed = new(1f, 0f, 0f, 1f);
+        public static readonly Vector4 ColorCyan = new(0f, 1f, 1f, 1f);
 
+        public static readonly Vector4 ColorBlack = new(0.1255f, 0.1255f, 0.1255f, 1f);
+        public static readonly Vector4 ColorYellowDark = new(.6f, .6f, 0f, 1f);
+        public static readonly Vector4 ColorGreenDark = new(0f, .75f, 0f, 1f);
+        public static readonly Vector4 ColorRedDark = new(.75f, 0f, 0f, 1f);
+        public static readonly Vector4 ColorCyanDark = new(0f, .5f, .5f, 1f);
         public static AssetLoadOptions AssetLoadOptions = default!;
 
         
@@ -114,25 +120,10 @@ namespace Phoenix.AssetTool.Core
             return (true, File.Exists(builtPath));
         }
 
-        public static Vector4 GetColor(
-            AssetEntry? asset)
-        {
-            (bool tracked, bool built) = VerifyAsset(asset);
-
-            return GetColor(tracked, built);
-        }
-
-        public static Vector4 GetColor(
-             bool tracked, bool built)
-        {
-            if (!tracked)
-                return ColorWhite;
-
-            return built ? ColorGreen : ColorYellow;
-        }
         static string[] models = [".fbx", ".gltf", ".glb", ".obj", ".dae", ".stl"];
         static string[] textures = [".png", ".jpg", ".jpeg", ".tga"];
         static string[] shaders = [".glsl", ".shader", ".vert", ".frag", ".comp"];
+        static string[] videos = [".mp4", ".webm", ".avi", ".mkv", ".mov"];
         //TODO: verify 3DS, PLY, STL
         //CAD STEP(.stp), IFC, DXF
         //Game Engines    MD2, MD3, MDL, X, B3D, MS3D
@@ -148,6 +139,8 @@ namespace Phoenix.AssetTool.Core
                 return AssetType.Texture;
             if (shaders.Contains(type))
                 return AssetType.Shader;
+            //if (videos.Contains(type))
+            //    return AssetType.Video;
 
             return AssetType.Unknown;
         }

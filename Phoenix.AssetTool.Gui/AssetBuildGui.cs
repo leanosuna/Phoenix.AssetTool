@@ -25,12 +25,9 @@ namespace Phoenix.AssetTool.Gui
                 a.State == AssetBuildState.Skipped ||
                 a.State == AssetBuildState.Failed);
             
-            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
-            if (total > 0 && done != total)
-                ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
-            ImGui.PopStyleColor();
+            
 
-            if (ImGui.CollapsingHeader("build info", ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader("build info"))
             {
                 if (timeoutTimer < timeout)
                     timeoutTimer += deltaTime;
@@ -39,7 +36,7 @@ namespace Phoenix.AssetTool.Gui
                 if (done == total)
                     timeoutTimer = 0;
 
-                ImGui.Separator();
+                //ImGui.Separator();
 
                 foreach (var item in AssetBuildController.Status.BuildList)
                 {
@@ -48,19 +45,26 @@ namespace Phoenix.AssetTool.Gui
                     DrawBuildItem(item);
                 }
             }
+            ImGui.SameLine();
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
+            if (total > 0 && done != total)
+                ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
+            ImGui.PopStyleColor();
+
             ImGui.Separator();
 
         }
         private static void DrawBuildItem(AssetBuildStatus item)
         {
+            var dark = AssetToolGui.DarkTheme;
             var color = item.State switch
             {
-                AssetBuildState.Pending => FileTools.ColorWhite,
-                AssetBuildState.Building => FileTools.ColorYellow,
-                AssetBuildState.Encoding => FileTools.ColorYellow,
-                AssetBuildState.Built => FileTools.ColorGreen,
-                AssetBuildState.Failed => FileTools.ColorRed,
-                AssetBuildState.Skipped => FileTools.ColorWhite,
+                AssetBuildState.Pending => dark ? FileTools.ColorWhite : FileTools.ColorBlack,
+                AssetBuildState.Building => dark ? FileTools.ColorYellow : FileTools.ColorYellowDark,
+                AssetBuildState.Encoding => dark ? FileTools.ColorYellow : FileTools.ColorYellowDark,
+                AssetBuildState.Built => dark ? FileTools.ColorGreen : FileTools.ColorGreenDark,
+                AssetBuildState.Failed => dark ? FileTools.ColorRed: FileTools.ColorRedDark,
+                AssetBuildState.Skipped => dark ? FileTools.ColorWhite: FileTools.ColorBlack,
                 _ => FileTools.ColorWhite
             };
 

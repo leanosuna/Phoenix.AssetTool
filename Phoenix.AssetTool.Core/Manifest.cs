@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.Intrinsics.Arm;
 using System.Text;
 using System.Xml.Linq;
 
@@ -19,6 +20,13 @@ namespace Phoenix.AssetTool.Core
             get => AssetManifest.Namespace; 
             set => AssetManifest.Namespace = value; 
         }
+
+        public static bool DarkTheme
+        {
+            get => AssetManifest.DarkTheme;
+            set => AssetManifest.DarkTheme = value;
+        }
+
         public static string AbsolutePath { get; private set; } = default!;
 
         public const string DefaultName = "asset-manifest.json";
