@@ -108,26 +108,34 @@ namespace Phoenix.AssetTool.Gui
 
             if(InputManager.KeyDown(Key.ControlLeft))
             {
-                if (diff > 0)
+                if (diff < 0)
                 {
-                    currentFontSize += 1;
-                    if (currentFontSize > 100)
-                        currentFontSize = 100;
+                    FontSizeUp();
                 }
-                else if (diff < 0)
+                else if (diff > 0)
                 {
-                    currentFontSize -= 1;
-                    if (currentFontSize < 10)
-                        currentFontSize = 10;
+                    FontSizeDown();
+                   
                 }
             }
         }
         static (bool selected, bool existed, string path) res = (false, false, "");
-        static int currentFontSize = 20;
+        static int currentFontSize = 17;
         public static Vector2 BrowserSize;
         public static bool DarkTheme = false;
 
-
+        public static void FontSizeUp()
+        {
+            currentFontSize += 1;
+            if (currentFontSize > 50)
+                currentFontSize = 50;
+        }
+        public static void FontSizeDown()
+        {
+            currentFontSize -= 1;
+            if (currentFontSize < 10)
+                currentFontSize = 10;
+        }
         public static void ToggleTheme()
         {
             DarkTheme = !DarkTheme;
@@ -220,7 +228,20 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.SetNextWindowSize(new Vector2(WindowWidth - BrowserSize.X, WindowHeight));
                 ImGui.Begin("asset options ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize);
 
-                AssetOptionsGui.Draw(AssetBrowserGui.SelectedFileOptions);
+                if(AssetBrowserGui.ShowOptions)
+                    AssetOptionsGui.Draw(AssetBrowserGui.SelectedFileOptions);
+                else
+                {
+                    var item = AssetBuildGui.Selected;
+                    ImGui.Text($"{Path.GetFileName(item.Asset.RelativePath)} FAILED:");
+                    var e = item.Error;
+
+                    var sz = ImGui.CalcTextSize(e) + new Vector2(30,10);
+                    
+                    
+                    ImGui.InputTextMultiline("##error",ref e, 1000, sz, ImGuiInputTextFlags.ReadOnly);
+                    
+                }
             }
 
             _controller.Render();

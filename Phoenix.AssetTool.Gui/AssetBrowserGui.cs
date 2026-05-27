@@ -14,7 +14,7 @@ namespace Phoenix.AssetTool.Gui
     public static class AssetBrowserGui
     {
         public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
-
+        public static bool ShowOptions = true;
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
 
         public static void UpdateDirectory(bool res = false)
@@ -32,7 +32,21 @@ namespace Phoenix.AssetTool.Gui
             {
                 AssetToolGui.ToggleTheme();
             }
-            ImGui.PopStyleColor();
+            ImGui.SameLine();
+            ImGui.Text("zoom");
+            ImGui.SameLine();
+            if (ImGui.Button($"+"))
+            {
+                AssetToolGui.FontSizeUp();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button($"-"))
+            {
+                AssetToolGui.FontSizeDown();
+            }
+
+            ImGui.SameLine();
+            ImGui.Text("|");
             ImGui.SameLine();
             if (ImGui.Button("Select Files..."))
             {
@@ -247,7 +261,7 @@ namespace Phoenix.AssetTool.Gui
                 SelectedFileOptions.asset = meta.Asset;
                 SelectedFileOptions.type = meta.Type;
                 SelectedFileOptions.path = meta.RelativePath;
-                
+                ShowOptions = true;
                 
                 if(!manifestOnly)
                 {

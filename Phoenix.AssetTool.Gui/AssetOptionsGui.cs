@@ -9,15 +9,6 @@ using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using Silk.NET.Assimp;
-using Silk.NET.Core.Native;
-using SixLabors.ImageSharp.ColorSpaces;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.NetworkInformation;
-using System.Numerics;
-using System.Text;
-using System.Xml.Linq;
 
 namespace Phoenix.AssetTool.Gui
 {
@@ -32,7 +23,7 @@ namespace Phoenix.AssetTool.Gui
             var asset = sfo.asset;
             var type = sfo.type;
             var path = sfo.path;
-
+            
             if (path == "")
                 return;
             
