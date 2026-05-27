@@ -14,7 +14,7 @@ namespace Phoenix.AssetTool.Gui
     public static class AssetBrowserGui
     {
         public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
-
+        public static bool ShowOptions = true;
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
 
         public static void UpdateDirectory(bool res = false)
@@ -26,7 +26,28 @@ namespace Phoenix.AssetTool.Gui
             if (_directoryBrowserMeta == null)
                 UpdateDirectory();
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(.5f, .5f, .5f, 1));
+            Vector4 col;
+            var switchTheme = AssetToolGui.DarkTheme ? "light" : "dark";
+            if (ImGui.Button($"{switchTheme}"))
+            {
+                AssetToolGui.ToggleTheme();
+            }
+            ImGui.SameLine();
+            ImGui.Text("zoom");
+            ImGui.SameLine();
+            if (ImGui.Button($"+"))
+            {
+                AssetToolGui.FontSizeUp();
+            }
+            ImGui.SameLine();
+            if (ImGui.Button($"-"))
+            {
+                AssetToolGui.FontSizeDown();
+            }
+
+            ImGui.SameLine();
+            ImGui.Text("|");
+            ImGui.SameLine();
             if (ImGui.Button("Select Files..."))
             {
                 if (AssetToolGui.OpenAssetFilePicker(out var files))
@@ -41,33 +62,34 @@ namespace Phoenix.AssetTool.Gui
                     UpdateDirectory();
                 }
             }
-            ImGui.PopStyleColor();
-
+            
             ImGui.SameLine();
             ImGui.Text("|");
             ImGui.SameLine();
-
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
+            col = AssetToolGui.DarkTheme ? FileTools.ColorGreen: FileTools.ColorGreenDark;
+            ImGui.PushStyleColor(ImGuiCol.Text, col);
             if (ImGui.Button("Build All"))
             {
                 _ = AssetBuildController.StartBuild(rebuild:false, UpdateDirectory);
             }
             ImGui.PopStyleColor();
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
+            col = AssetToolGui.DarkTheme ? FileTools.ColorCyan : FileTools.ColorCyanDark;
+            ImGui.PushStyleColor(ImGuiCol.Text, col);
             if (ImGui.Button("Rebuild All"))
             {
                 _ = AssetBuildController.StartBuild(rebuild: true, UpdateDirectory);
             }
             ImGui.PopStyleColor();
-                      
-
+            ImGui.NewLine();
             AssetBuildGui.DrawBuildWindow(dt);
-            
+            ImGui.NewLine();
+            ImGui.Separator();
             var nameSpace = Manifest.Namespace;
             ImGui.Text("Generator: Shader helpers namespace");
             ImGui.InputText("##Shader namespace", ref nameSpace, 100);
-            ImGui.Separator();
+            ImGui.Separator(); 
+            ImGui.NewLine();
 
             if (Manifest.Namespace != nameSpace)
             {
@@ -166,6 +188,16 @@ namespace Phoenix.AssetTool.Gui
             return update;
         }
 
+        static Vector4 GetColor(
+             bool tracked, bool built)
+        {
+            if (!tracked)
+                return AssetToolGui.DarkTheme ? FileTools.ColorWhite : FileTools.ColorBlack;
+            
+            var a = AssetToolGui.DarkTheme ? FileTools.ColorGreen : FileTools.ColorGreenDark;
+            var b = AssetToolGui.DarkTheme ? FileTools.ColorYellow : FileTools.ColorYellowDark;
+            return built ? a : b;
+        }
         private static List<FileBrowserMeta> ProcessDirectoryFiles(string[] files)
         {
             var filesMeta = new List<FileBrowserMeta>();
@@ -191,7 +223,7 @@ namespace Phoenix.AssetTool.Gui
                         StringComparison.OrdinalIgnoreCase));
 
                 (var tracked, var built) = FileTools.VerifyAsset(asset);
-                var color = FileTools.GetColor(tracked, built);
+                var color = GetColor(tracked, built);
 
                 
                 filesMeta.Add(new FileBrowserMeta
@@ -229,7 +261,7 @@ namespace Phoenix.AssetTool.Gui
                 SelectedFileOptions.asset = meta.Asset;
                 SelectedFileOptions.type = meta.Type;
                 SelectedFileOptions.path = meta.RelativePath;
-                
+                ShowOptions = true;
                 
                 if(!manifestOnly)
                 {

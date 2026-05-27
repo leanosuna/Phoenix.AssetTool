@@ -13,10 +13,8 @@ namespace Phoenix.AssetTool.Gui
 {
     public static class AssetBuildGui
     {
-        
-        static float timeout = 5;
-        static float timeoutTimer = float.MaxValue;
-
+        static bool showPendingOnly = false;
+        public static AssetBuildStatus Selected = default!;
         public static void DrawBuildWindow(float deltaTime)
         {
             var total = AssetBuildController.Status.BuildList.Count;
@@ -24,22 +22,22 @@ namespace Phoenix.AssetTool.Gui
                 a.State == AssetBuildState.Built ||
                 a.State == AssetBuildState.Skipped ||
                 a.State == AssetBuildState.Failed);
+
+
+            var headerOpen = ImGui.CollapsingHeader("build info");
             
-            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
+            
             if (total > 0 && done != total)
-                ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
-            ImGui.PopStyleColor();
-
-            if (ImGui.CollapsingHeader("build info", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                if (timeoutTimer < timeout)
-                    timeoutTimer += deltaTime;
+                ImGui.SameLine();
+                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
+                ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
+                ImGui.PopStyleColor();
+            }
 
-
-                if (done == total)
-                    timeoutTimer = 0;
-
-                ImGui.Separator();
+            if (headerOpen)
+            {
+                ImGui.Checkbox("Show pending only", ref showPendingOnly);
 
                 foreach (var item in AssetBuildController.Status.BuildList)
                 {
@@ -47,30 +45,31 @@ namespace Phoenix.AssetTool.Gui
                         continue;
                     DrawBuildItem(item);
                 }
+
             }
             ImGui.Separator();
+
 
         }
         private static void DrawBuildItem(AssetBuildStatus item)
         {
+            if (showPendingOnly && (item.State == AssetBuildState.Built || item.State == AssetBuildState.Skipped))
+                return;
+
+            var dark = AssetToolGui.DarkTheme;
             var color = item.State switch
             {
-                AssetBuildState.Pending => FileTools.ColorWhite,
-                AssetBuildState.Building => FileTools.ColorYellow,
-                AssetBuildState.Encoding => FileTools.ColorYellow,
-                AssetBuildState.Built => FileTools.ColorGreen,
-                AssetBuildState.Failed => FileTools.ColorRed,
-                AssetBuildState.Skipped => FileTools.ColorWhite,
+                AssetBuildState.Pending => dark ? FileTools.ColorWhite : FileTools.ColorBlack,
+                AssetBuildState.Building => dark ? FileTools.ColorYellow : FileTools.ColorYellowDark,
+                AssetBuildState.Encoding => dark ? FileTools.ColorYellow : FileTools.ColorYellowDark,
+                AssetBuildState.Built => dark ? FileTools.ColorGreen : FileTools.ColorGreenDark,
+                AssetBuildState.Failed => dark ? FileTools.ColorRed: FileTools.ColorRedDark,
+                AssetBuildState.Skipped => dark ? FileTools.ColorWhite: FileTools.ColorBlack,
                 _ => FileTools.ColorWhite
             };
 
-            ImGui.PushStyleColor(ImGuiCol.Text, color);
-
-            ImGui.TextUnformatted(item.Asset.RelativePath);
-            
-            ImGui.SameLine(ImGui.GetWindowWidth() - 150);
-
             bool showProgress = false;
+            
             var str = "";
             switch (item.State)
             {
@@ -78,12 +77,12 @@ namespace Phoenix.AssetTool.Gui
                     str = "Pending...";
                     break;
                 case AssetBuildState.Building:
-                    str ="Building...";
+                    str = "Building...";
                     showProgress = true;
                     break;
                 case AssetBuildState.Encoding:
-                    str ="Encoding...";
-                    showProgress = true; 
+                    str = "Encoding...";
+                    showProgress = true;
                     break;
                 case AssetBuildState.Built:
                     str = "OK";
@@ -95,27 +94,48 @@ namespace Phoenix.AssetTool.Gui
                     str = "Skipped";
                     break;
             }
-            if (item.State != AssetBuildState.Built &&
-                item.State != AssetBuildState.Skipped &&
-                item.State != AssetBuildState.Failed) 
-            str += $"{item.Step}/{item.MaxSteps}";
-            ImGui.Text(str);
             if (showProgress)
             {
-                ImGui.SetNextItemWidth(140);
-                ImGui.SameLine(ImGui.GetWindowWidth() - 300);
-                ImGui.ProgressBar(-1.0f * (float)ImGui.GetTime(), new Vector2(0.0f, 0.0f));
+                //ImGui.SameLine(ImGui.GetWindowWidth() - 300);
+                DrawSpinner(item, color);
+                ImGui.SameLine();
+                if (item.State != AssetBuildState.Built &&
+                    item.State != AssetBuildState.Skipped &&
+                    item.State != AssetBuildState.Failed)
+                    str += $"{item.Step}/{item.MaxSteps}";
+                ImGui.Text(str);
+                ImGui.SameLine();
             }
+               
+            ImGui.PushStyleColor(ImGuiCol.Text, color);
 
+            //ImGui.SameLine();
+            var error = item.State == AssetBuildState.Failed && item.Error != null;
+            ImGui.Text(item.Asset.RelativePath);
+            
 
-
-            ImGui.PopStyleColor();
-
-            if (item.State == AssetBuildState.Failed && item.Error != null)
+            if (error)
             {
+                if (ImGui.IsItemClicked())
+                {
+                    //Console.WriteLine("asd");
+                    AssetBrowserGui.ShowOptions = false;
+                    Selected = item;
+                }
+                ImGui.PopStyleColor();
                 if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip(item.Error);
+                    ImGui.SetTooltip("(click to open on the right)\n"+item.Error);
+
+                ImGui.PushStyleColor(ImGuiCol.Text, color);
+                ImGui.SameLine();
+                ImGui.Text(str);
             }
+            ImGui.PopStyleColor();
+        }
+
+        static void DrawSpinner(AssetBuildStatus item, Vector4 color)
+        {
+            Spinners.SpinnerAng($"##ang_{item.Asset.RelativePath}", 8, 2f, color, 5);
         }
 
     }

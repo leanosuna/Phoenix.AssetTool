@@ -70,8 +70,26 @@ namespace Phoenix.AssetTool.Gui
             _controller = new ImGuiController(GL, Window, inputContext);
 
             LoadDefaultFont();
+            
+            if(Manifest.Loaded)
+            {
+                DarkTheme = Manifest.DarkTheme;
+                AssetOptions.Init();
+            }
+            else
+            {
+                DarkTheme = true;
+            }
+            UpdateTheme(false);
+            Manifest.RegisterNotifyAction(() => {
 
-            Manifest.RegisterNotifyAction(() => { AssetOptions.Init(); });
+                DarkTheme = Manifest.DarkTheme;
+                UpdateTheme(false);
+                AssetOptions.Init();
+
+            });
+            BrowserSize = new Vector2(WindowWidth / 2, WindowHeight);
+
         }
         static int mouseWheelVal = 0 ;
         static bool showDemo = false;
@@ -90,54 +108,75 @@ namespace Phoenix.AssetTool.Gui
 
             if(InputManager.KeyDown(Key.ControlLeft))
             {
-                if (diff > 0)
+                if (diff < 0)
                 {
-                    currentFontSize += 5;
-                    if (currentFontSize > 100)
-                        currentFontSize = 100;
+                    FontSizeUp();
                 }
-                else if (diff < 0)
+                else if (diff > 0)
                 {
-                    currentFontSize -= 5;
-                    if (currentFontSize < 10)
-                        currentFontSize = 10;
+                    FontSizeDown();
+                   
                 }
             }
         }
-        //static (bool selected, string dir, string path) res = (false, "", "");
         static (bool selected, bool existed, string path) res = (false, false, "");
-        static int currentFontSize = 20;
+        static int currentFontSize = 17;
+        public static Vector2 BrowserSize;
+        public static bool DarkTheme = false;
+
+        public static void FontSizeUp()
+        {
+            currentFontSize += 1;
+            if (currentFontSize > 50)
+                currentFontSize = 50;
+        }
+        public static void FontSizeDown()
+        {
+            currentFontSize -= 1;
+            if (currentFontSize < 10)
+                currentFontSize = 10;
+        }
+        public static void ToggleTheme()
+        {
+            DarkTheme = !DarkTheme;
+            UpdateTheme();
+        }
+        private static void UpdateTheme(bool save = true)
+        {
+            if (DarkTheme)
+                SetMocha();
+            else
+                SetLatte();
+            Console.WriteLine($"upd dark theme {Manifest.DarkTheme} save {save}");
+            if (save)
+            {
+                Manifest.DarkTheme = DarkTheme;
+                Manifest.Save();
+            }
+            AssetBrowserGui.UpdateDirectory();
+        }
         private static void Render(double deltaTime)
         {
-            GL.ClearColor(0, 0, 0, 0);
+            if(DarkTheme)
+                GL.ClearColor(0, 0, 0, 1);
+            else
+                GL.ClearColor(.9f, .9f, .9f, 1);
+
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
 
             _controller.Update((float)deltaTime);
             SetFontSize(currentFontSize);
-            //ImGui.Text("hello imgui test");
-            //ImGui.ShowDemoWindow();
+            
+            
 
             if (showDemo)
                 ImGui.ShowDemoWindow();
 
             ImGui.SetNextWindowPos(Vector2.Zero);
-            ImGui.SetNextWindowSize(new Vector2(WindowWidth / 2, WindowHeight));
-            ImGui.Begin("main tool ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize);
+            ImGui.SetNextWindowSize(BrowserSize);
+            ImGui.Begin("main tool ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse);
             
-            if(Manifest.Loaded)
-            {
-                ImGui.Text("Files: "); SL();
-                ImGui.ColorButton("", FileTools.ColorWhite,ImGuiColorEditFlags.NoInputs| ImGuiColorEditFlags.NoTooltip); SL();
-                ImGui.Text("untracked"); SL();
-
-                ImGui.ColorButton("", FileTools.ColorYellow, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoTooltip); SL();
-                ImGui.Text("added"); SL();
-
-                ImGui.ColorButton("", FileTools.ColorGreen, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.NoTooltip); SL();
-                ImGui.Text("built"); 
-            }
-            ImGui.NewLine();
-
+            var drawOptions = false;
             if (!Manifest.Loaded)
             {
                 if (ImGui.Button("Create Manifest file in a folder... (C)") ||
@@ -145,11 +184,11 @@ namespace Phoenix.AssetTool.Gui
                 {
                     res = Manifest.PickFolderToCreate();
 
-                    if(res.selected)
+                    if (res.selected)
                     {
-                        if(res.existed)
+                        if (res.existed)
                             ImGui.OpenPopup("replace-manifest");
-                        
+
                     }
                 }
                 ImGui.Text("or");
@@ -161,36 +200,303 @@ namespace Phoenix.AssetTool.Gui
 
                 if (ImGui.BeginPopup("replace-manifest", ImGuiWindowFlags.NoMove))
                 {
-                    ImGui.TextColored(new Vector4(0.5f,0,0,1),"Asset manifest found in this directory.");
+                    ImGui.TextColored(new Vector4(0.5f, 0, 0, 1), "Asset manifest found in this directory.");
                     if (ImGui.Button("Open existing manifest (E)") || InputManager.KeyDownOnce(Key.E)) //TODO: add colors
                         Manifest.Load(res.path);
-                    
+
                     if (ImGui.Button("Clear existing manifest (R)") || InputManager.KeyDownOnce(Key.R))
                         Manifest.Clear(res.path);
-                    
+
                     ImGui.EndPopup();
                 }
-                
+
             }
             else
             {
-
                 AssetBrowserGui.DrawDirFileTree((float)deltaTime);
 
-                ImGui.SetNextWindowPos(new Vector2(WindowWidth / 2, 0));
-                ImGui.SetNextWindowSize(new Vector2(WindowWidth / 2, WindowHeight));
+                drawOptions = true;
+                
+            }
+            var size = ImGui.GetWindowSize();
+
+            BrowserSize.X = size.X;
+            ImGui.End();
+            if(drawOptions)
+            {
+                ImGui.SetNextWindowPos(new Vector2(BrowserSize.X, 0));
+                ImGui.SetNextWindowSize(new Vector2(WindowWidth - BrowserSize.X, WindowHeight));
                 ImGui.Begin("asset options ui", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize);
 
-                AssetOptionsGui.Draw(AssetBrowserGui.SelectedFileOptions);
+                if(AssetBrowserGui.ShowOptions)
+                    AssetOptionsGui.Draw(AssetBrowserGui.SelectedFileOptions);
+                else
+                {
+                    var item = AssetBuildGui.Selected;
+                    ImGui.Text($"{Path.GetFileName(item.Asset.RelativePath)} FAILED:");
+                    var e = item.Error;
 
+                    var sz = ImGui.CalcTextSize(e) + new Vector2(30,10);
+                    
+                    
+                    ImGui.InputTextMultiline("##error",ref e, 1000, sz, ImGuiInputTextFlags.ReadOnly);
+                    
+                }
             }
-
-
-
 
             _controller.Render();
         }
+        static Vector4 Hex(string hex, float alpha = 1.0f)
+        {
+            hex = hex.TrimStart('#');
 
+            float r = Convert.ToInt32(hex.Substring(0, 2), 16) / 255f;
+            float g = Convert.ToInt32(hex.Substring(2, 2), 16) / 255f;
+            float b = Convert.ToInt32(hex.Substring(4, 2), 16) / 255f;
+
+            return new Vector4(r, g, b, alpha);
+        }
+        static void SetLatte()
+        {
+            ImGuiStylePtr style = ImGui.GetStyle();
+            var colors = style.Colors;
+
+            style.WindowRounding = 8f;
+            style.ChildRounding = 8f;
+            style.FrameRounding = 6f;
+            style.PopupRounding = 6f;
+            style.ScrollbarRounding = 6f;
+            style.GrabRounding = 6f;
+            style.TabRounding = 6f;
+
+            // Catppuccin Latte
+            const string Rosewater = "#dc8a78";
+            const string Flamingo = "#dd7878";
+            const string Pink = "#ea76cb";
+            const string Mauve = "#8839ef";
+            const string Red = "#d20f39";
+            const string Peach = "#fe640b";
+            const string Yellow = "#df8e1d";
+            const string Green = "#40a02b";
+            const string Teal = "#179299";
+            const string Sky = "#04a5e5";
+            const string Sapphire = "#209fb5";
+            const string Blue = "#1e66f5";
+            const string Lavender = "#7287fd";
+
+            //const string Text = "#4c4f69";
+            const string Text = "#202020";
+
+            const string Subtext1 = "#5c5f77";
+            const string Subtext0 = "#6c6f85";
+
+            const string Overlay2 = "#7c7f93";
+            const string Overlay1 = "#8c8fa1";
+            const string Overlay0 = "#9ca0b0";
+
+            const string Surface2 = "#acb0be";
+            const string Surface1 = "#bcc0cc";
+            const string Surface0 = "#ccd0da";
+
+            const string Base = "#eff1f5";
+            const string Mantle = "#e6e9ef";
+            const string Crust = "#dce0e8";
+
+            SetColor(ref colors, ImGuiCol.Text, Text);
+            SetColor(ref colors, ImGuiCol.TextDisabled, Overlay1);
+
+            SetColor(ref colors, ImGuiCol.WindowBg, Base);
+            SetColor(ref colors, ImGuiCol.ChildBg, Base);
+            SetColor(ref colors, ImGuiCol.PopupBg, Mantle, 0.98f);
+
+            SetColor(ref colors, ImGuiCol.Border, Surface2, 0.6f);
+            SetColor(ref colors, ImGuiCol.BorderShadow, Crust, 0.0f);
+
+            SetColor(ref colors, ImGuiCol.FrameBg, Surface0);
+            SetColor(ref colors, ImGuiCol.FrameBgHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.FrameBgActive, Surface2);
+
+            SetColor(ref colors, ImGuiCol.TitleBg, Mantle);
+            SetColor(ref colors, ImGuiCol.TitleBgActive, Surface0);
+            SetColor(ref colors, ImGuiCol.TitleBgCollapsed, Crust);
+
+            SetColor(ref colors, ImGuiCol.MenuBarBg, Mantle);
+
+            SetColor(ref colors, ImGuiCol.ScrollbarBg, Crust);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrab, Overlay0);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrabHovered, Overlay1);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrabActive, Overlay2);
+
+            SetColor(ref colors, ImGuiCol.CheckMark, Blue);
+
+            SetColor(ref colors, ImGuiCol.SliderGrab, Sapphire);
+            SetColor(ref colors, ImGuiCol.SliderGrabActive, Blue);
+
+            SetColor(ref colors, ImGuiCol.Button, Surface0);
+            SetColor(ref colors, ImGuiCol.ButtonHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.ButtonActive, Surface2);
+
+            //SetColor(ref colors, ImGuiCol.Header, Surface0);
+            //SetColor(ref colors, ImGuiCol.HeaderHovered, Surface1);
+            //SetColor(ref colors, ImGuiCol.HeaderActive, Surface2);
+            SetColor(ref colors, ImGuiCol.Header, Sapphire);
+            SetColor(ref colors, ImGuiCol.HeaderHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.HeaderActive, Surface2);
+
+            SetColor(ref colors, ImGuiCol.Separator, Overlay0);
+            SetColor(ref colors, ImGuiCol.SeparatorHovered, Overlay1);
+            SetColor(ref colors, ImGuiCol.SeparatorActive, Overlay2);
+
+            SetColor(ref colors, ImGuiCol.ResizeGrip, Overlay0, 0.4f);
+            SetColor(ref colors, ImGuiCol.ResizeGripHovered, Blue, 0.7f);
+            SetColor(ref colors, ImGuiCol.ResizeGripActive, Sapphire);
+
+            SetColor(ref colors, ImGuiCol.Tab, Mantle);
+            SetColor(ref colors, ImGuiCol.TabHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.TabActive, Surface0);
+            SetColor(ref colors, ImGuiCol.TabUnfocused, Crust);
+            SetColor(ref colors, ImGuiCol.TabUnfocusedActive, Surface0);
+
+            SetColor(ref colors, ImGuiCol.DockingPreview, Blue, 0.5f);
+            SetColor(ref colors, ImGuiCol.DockingEmptyBg, Mantle);
+
+            SetColor(ref colors, ImGuiCol.PlotLines, Blue);
+            SetColor(ref colors, ImGuiCol.PlotLinesHovered, Red);
+
+            SetColor(ref colors, ImGuiCol.PlotHistogram, Green);
+            SetColor(ref colors, ImGuiCol.PlotHistogramHovered, Teal);
+
+            SetColor(ref colors, ImGuiCol.TextSelectedBg, Blue, 0.25f);
+            SetColor(ref colors, ImGuiCol.DragDropTarget, Red);
+
+            SetColor(ref colors, ImGuiCol.NavHighlight, Blue);
+            SetColor(ref colors, ImGuiCol.NavWindowingHighlight, Lavender);
+            SetColor(ref colors, ImGuiCol.NavWindowingDimBg, Crust, 0.5f);
+            SetColor(ref colors, ImGuiCol.ModalWindowDimBg, Crust, 0.5f);
+        }
+        static void SetMocha()
+        {
+            ImGuiStylePtr style = ImGui.GetStyle();
+            var colors = style.Colors;
+
+            style.WindowRounding = 8f;
+            style.ChildRounding = 8f;
+            style.FrameRounding = 6f;
+            style.PopupRounding = 6f;
+            style.ScrollbarRounding = 6f;
+            style.GrabRounding = 6f;
+            style.TabRounding = 6f;
+
+            // Catppuccin Mocha
+            const string Rosewater = "#f5e0dc";
+            const string Flamingo = "#f2cdcd";
+            const string Pink = "#f5c2e7";
+            const string Mauve = "#cba6f7";
+            const string Red = "#f38ba8";
+            const string Peach = "#fab387";
+            const string Yellow = "#f9e2af";
+            const string Green = "#a6e3a1";
+            const string Teal = "#94e2d5";
+            const string Sky = "#89dceb";
+            const string Sapphire = "#74c7ec";
+            const string Blue = "#89b4fa";
+            const string Lavender = "#b4befe";
+
+            const string Text = "#cdd6f4";
+            const string Subtext1 = "#bac2de";
+            const string Subtext0 = "#a6adc8";
+
+            const string Overlay2 = "#9399b2";
+            const string Overlay1 = "#7f849c";
+            const string Overlay0 = "#6c7086";
+
+            const string Surface2 = "#585b70";
+            const string Surface1 = "#45475a";
+            const string Surface0 = "#313244";
+
+            const string Base = "#1e1e2e";
+            const string Mantle = "#181825";
+            const string Crust = "#11111b";
+
+            SetColor(ref colors, ImGuiCol.Text, Text);
+            SetColor(ref colors, ImGuiCol.TextDisabled, Overlay1);
+
+            SetColor(ref colors, ImGuiCol.WindowBg, Base);
+            SetColor(ref colors, ImGuiCol.ChildBg, Base);
+            SetColor(ref colors, ImGuiCol.PopupBg, Mantle, 0.98f);
+
+            SetColor(ref colors, ImGuiCol.Border, Surface2, 0.5f);
+            SetColor(ref colors, ImGuiCol.BorderShadow, Crust, 0.0f);
+
+            SetColor(ref colors, ImGuiCol.FrameBg, Surface0);
+            SetColor(ref colors, ImGuiCol.FrameBgHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.FrameBgActive, Surface2);
+
+            SetColor(ref colors, ImGuiCol.TitleBg, Mantle);
+            SetColor(ref colors, ImGuiCol.TitleBgActive, Surface0);
+            SetColor(ref colors, ImGuiCol.TitleBgCollapsed, Crust);
+
+            SetColor(ref colors, ImGuiCol.MenuBarBg, Mantle);
+
+            SetColor(ref colors, ImGuiCol.ScrollbarBg, Crust);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrab, Overlay0);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrabHovered, Overlay1);
+            SetColor(ref colors, ImGuiCol.ScrollbarGrabActive, Overlay2);
+
+            SetColor(ref colors, ImGuiCol.CheckMark, Blue);
+
+            SetColor(ref colors, ImGuiCol.SliderGrab, Sapphire);
+            SetColor(ref colors, ImGuiCol.SliderGrabActive, Blue);
+
+            SetColor(ref colors, ImGuiCol.Button, Surface0);
+            SetColor(ref colors, ImGuiCol.ButtonHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.ButtonActive, Surface2);
+
+            SetColor(ref colors, ImGuiCol.Header, Blue, 0.65f);
+            SetColor(ref colors, ImGuiCol.HeaderHovered, Surface1, 0.85f);
+            SetColor(ref colors, ImGuiCol.HeaderActive, Surface2, 1.0f);
+
+            SetColor(ref colors, ImGuiCol.Separator, Overlay0);
+            SetColor(ref colors, ImGuiCol.SeparatorHovered, Overlay1);
+            SetColor(ref colors, ImGuiCol.SeparatorActive, Overlay2);
+
+            SetColor(ref colors, ImGuiCol.ResizeGrip, Overlay0, 0.4f);
+            SetColor(ref colors, ImGuiCol.ResizeGripHovered, Blue, 0.7f);
+            SetColor(ref colors, ImGuiCol.ResizeGripActive, Sapphire);
+
+            SetColor(ref colors, ImGuiCol.Tab, Mantle);
+            SetColor(ref colors, ImGuiCol.TabHovered, Surface1);
+            SetColor(ref colors, ImGuiCol.TabActive, Surface0);
+            SetColor(ref colors, ImGuiCol.TabUnfocused, Crust);
+            SetColor(ref colors, ImGuiCol.TabUnfocusedActive, Surface0);
+
+            SetColor(ref colors, ImGuiCol.DockingPreview, Blue, 0.5f);
+            SetColor(ref colors, ImGuiCol.DockingEmptyBg, Mantle);
+
+            SetColor(ref colors, ImGuiCol.PlotLines, Blue);
+            SetColor(ref colors, ImGuiCol.PlotLinesHovered, Red);
+
+            SetColor(ref colors, ImGuiCol.PlotHistogram, Green);
+            SetColor(ref colors, ImGuiCol.PlotHistogramHovered, Teal);
+
+            SetColor(ref colors, ImGuiCol.TextSelectedBg, Blue, 0.35f);
+            SetColor(ref colors, ImGuiCol.DragDropTarget, Red);
+
+            SetColor(ref colors, ImGuiCol.NavHighlight, Blue);
+            SetColor(ref colors, ImGuiCol.NavWindowingHighlight, Lavender);
+            SetColor(ref colors, ImGuiCol.NavWindowingDimBg, Crust, 0.5f);
+            SetColor(ref colors, ImGuiCol.ModalWindowDimBg, Crust, 0.7f);
+        }
+        static void SetColor(ref RangeAccessor<Vector4> colors, ImGuiCol idx, string hex, float alpha = 1.0f)
+        {
+            colors[(int)idx] = Hex(hex, alpha);
+        }
+        public static void SetColor(ref RangeAccessor<Vector4> colors, ImGuiCol idx, float r, float g, float b, float a)
+        {
+            colors[(int)idx] = new Vector4(r, g, b, a);   
+        }
+        
+        
         public static bool OpenAssetFilePicker(out string[] filesOut)
         {
             using var dlg = new NativeFileDialog()
@@ -235,7 +541,7 @@ namespace Phoenix.AssetTool.Gui
         public static void LoadDefaultFont()
         {
             List<int> sizes = new List<int>();
-            for (int i = 10; i <= 100; i += 5)
+            for (int i = 10; i <= 50; i += 1)
                 sizes.Add(i);
 
             LoadFontTTF(FileTools.ExtractPath("CascadiaMono.ttf", ""), sizes.ToArray());

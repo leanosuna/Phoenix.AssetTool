@@ -9,15 +9,6 @@ using Phoenix.AssetTool.Core.Model;
 using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using Silk.NET.Assimp;
-using Silk.NET.Core.Native;
-using SixLabors.ImageSharp.ColorSpaces;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.NetworkInformation;
-using System.Numerics;
-using System.Text;
-using System.Xml.Linq;
 
 namespace Phoenix.AssetTool.Gui
 {
@@ -32,7 +23,7 @@ namespace Phoenix.AssetTool.Gui
             var asset = sfo.asset;
             var type = sfo.type;
             var path = sfo.path;
-
+            
             if (path == "")
                 return;
             
@@ -59,8 +50,9 @@ namespace Phoenix.AssetTool.Gui
             ImGui.Text($"{type.ToString()} Load Options: {name}");
 
             (bool tracked, bool built) = FileTools.VerifyAsset(asset);
+            var col = AssetToolGui.DarkTheme ? FileTools.ColorYellow : FileTools.ColorYellowDark;
 
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(.5f, .5f, 0, 1));
+            //ImGui.PushStyleColor(ImGuiCol.Text, col);
             if (ImGui.Button("Add"))
             {
                 FileTools.AddFile(path);
@@ -68,12 +60,13 @@ namespace Phoenix.AssetTool.Gui
                 AssetBrowserGui.RefreshSelection();
 
             }
-            ImGui.PopStyleColor();
+            //ImGui.PopStyleColor();
             
             if (tracked)
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(.5f, 0, 0, 1));
+                col = AssetToolGui.DarkTheme ? FileTools.ColorRed : FileTools.ColorRedDark;
+                ImGui.PushStyleColor(ImGuiCol.Text, col);
                 if (ImGui.Button("Remove"))
                 {
                     FileTools.RemoveFile(path);
@@ -95,7 +88,8 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.SameLine();
                 if(!built)
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, 0, 1));
+                    col = AssetToolGui.DarkTheme ? FileTools.ColorGreen: FileTools.ColorGreenDark;
+                    ImGui.PushStyleColor(ImGuiCol.Text, col);
                     if (ImGui.Button("Build"))
                     {
                         SaveOptions(asset);
@@ -105,7 +99,8 @@ namespace Phoenix.AssetTool.Gui
                 }
                 else
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0, .5f, .5f, 1));
+                    col = AssetToolGui.DarkTheme ? FileTools.ColorCyan: FileTools.ColorCyanDark;
+                    ImGui.PushStyleColor(ImGuiCol.Text, col);
                     if (ImGui.Button("Rebuild"))
                     {
                         SaveOptions(asset); 
@@ -296,27 +291,6 @@ namespace Phoenix.AssetTool.Gui
             ImGui.Text("Mag Filter"); 
             if (ImGui.ListBox("##5", ref current5, filterList, 2))
                 options.Mag = options.Mag.At(current5);
-
-            var anisotropic = options.Anisotropic;
-            var enabled = anisotropic >= 0;
-
-            if(ImGui.Checkbox("Enable Anisotropic", ref enabled))
-            {
-                options.Anisotropic = enabled ? 0f:-1f; 
-            }
-            ImGui.SameLine();
-            ImGui.TextDisabled("0: max supported by gpu");
-            if (enabled)
-            {
-                ImGui.Text("Max level");
-                if (ImGui.DragFloat("##6", ref anisotropic, 1, 0, 16))
-                    options.Anisotropic = anisotropic;
-
-
-            }
-
-            
-
 
         }
         public static void DrawShaderOptions(AssetEntry asset, string path)
