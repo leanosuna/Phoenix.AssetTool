@@ -16,7 +16,8 @@ namespace Phoenix.AssetTool.Gui
         public static (AssetEntry? asset, AssetType type, string path) SelectedFileOptions = (null, AssetType.Unknown, "");
         public static bool ShowOptions = true;
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
-
+        //static List<string> outsideContent = new();
+        static List<ExternalAsset> externalAssets = new();
         public static void UpdateDirectory(bool res = false)
         {
             _directoryBrowserMeta = ProcessDirectoryRec(Manifest.BaseDirectory);
@@ -52,17 +53,87 @@ namespace Phoenix.AssetTool.Gui
             {
                 if (AssetToolGui.OpenAssetFilePicker(out var files))
                 {
-                    foreach (var file in files)
+                    List<(string abs, string relative)> paths  = files.Select(f => (f, Path.GetRelativePath(Manifest.BaseDirectory, f).Replace("\\", "/"))).ToList();
+                    var outsideContent = paths.FindAll(p => p.relative.StartsWith("../"));
+                    externalAssets = outsideContent.Select(p => new ExternalAsset { Path = p.abs }).ToList();
+
+                    if (externalAssets.Count == 0)
                     {
-                        var relative =
-                            Path.GetRelativePath(Manifest.BaseDirectory, file).Replace("\\", "/");
-                        FileTools.AddFile(relative, false);
+                        paths.ForEach(p => FileTools.AddFile(p.relative, false));
+                        Manifest.Save();
+                        UpdateDirectory();
+                    }
+                    else
+                    {
+                        ImGui.OpenPopup("outside-content");
+                    }
+                }
+
+            }
+            
+
+            if (ImGui.BeginPopup("outside-content"))
+            {
+                ImGui.Text("The following items are outside the content folder.");
+                ImGui.Text("Where do we copy them?");
+
+                foreach (var asset in externalAssets)
+                {
+                    ImGui.Text(asset.Path);
+                    ImGui.SameLine();
+
+                    var dirStr = asset.DirectorySet ?
+                        (asset.DirectoryValid ?
+                            $"{asset.DirectorySelected} " :
+                            "invalid directory. must be withing content.")
+                        : $"Select directory...##{asset.Path}";
+
+                    if (ImGui.Button(dirStr))
+                    {
+                        if (FileTools.FolderPicker(out var dir))
+                        {
+                            var dirToDir = Path.GetRelativePath(dir, Manifest.BaseDirectory).Replace("\\", "/");
+                            
+                            asset.DirectorySelected = dir;
+                            asset.DirectoryValid = !dirToDir.StartsWith("../");
+                            asset.DirectorySet = true;
+
+                        }
+                    }
+                }
+
+                if (ImGui.Button("OK"))
+                {
+                    foreach(var e in externalAssets)
+                    {
+                        if(e.DirectorySet && e.DirectoryValid)
+                        {   
+                            var name = Path.GetFileName(e.Path);
+                            var dstPath = Path.Combine(e.DirectorySelected, name);
+                            var relative = Path.GetRelativePath(Manifest.BaseDirectory, dstPath).Replace("\\", "/");
+                            File.Copy(e.Path, dstPath, overwrite: true);
+                            FileTools.AddFile(relative, false);
+                        }
                     }
                     Manifest.Save();
                     UpdateDirectory();
+
+                    externalAssets.Clear();
+                    ImGui.CloseCurrentPopup();
+
                 }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    externalAssets.Clear();
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.EndPopup();
             }
-            
+
+
+
+
             ImGui.SameLine();
             ImGui.Text("|");
             ImGui.SameLine();

@@ -510,7 +510,22 @@ namespace Phoenix.AssetTool.Gui
             return false;
 
         }
-        
+
+        public static bool OpenDirectoryPicker(out string[] filesOut)
+        {
+            using var dlg = new NativeFileDialog()
+            .SelectFolder();
+            DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
+            if (result == DialogResult.Okay && files != null && files.Length > 0)
+            {
+                filesOut = files;
+                return true;
+            }
+            filesOut = [];
+            return false;
+
+        }
+
         public static void ShowHelpTooltip(string desc, bool sameLine = true)
         {
             if (sameLine)
