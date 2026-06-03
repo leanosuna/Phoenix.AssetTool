@@ -45,6 +45,27 @@ namespace Phoenix.AssetTool.Core
                 Save();
             }
         }
+        public static bool CreateAbsolute(string absolute)
+        {
+            var am = new AssetManifest();
+            var dir = Path.GetDirectoryName(absolute);
+            var name = Path.GetFileName(absolute);
+            if (dir is null)
+                return false;
+
+            Directory.CreateDirectory(dir);
+
+            AssetManifest = am;
+
+            BaseDirectory = dir.Replace("\\", "/");
+            AbsolutePath = absolute.Replace("\\", "/");
+            Name = name;
+
+            _onManifestChange.ForEach(a => a.Invoke());
+            Save();
+            return true;
+        }
+
         public static bool Create(string dir, string name = DefaultName)
         {
             if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(name))

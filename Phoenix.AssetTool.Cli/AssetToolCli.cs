@@ -55,7 +55,7 @@ namespace AssetTool.Cli
 
             if(!silent)
                 Console.WriteLine($"Loading {fileName}");
-
+            
             if (!Manifest.Load(absolutePath))
             {
                 if (!silent)
@@ -65,6 +65,51 @@ namespace AssetTool.Cli
             if (!silent)
                 Console.WriteLine($"Found {fileName}");
 
+            return true;
+        }
+
+        public static bool TryCreateManifest(ParseResult res, bool replaceOnFound = false)
+        {
+            FileInfo? manFileInfo = null;
+            try
+            {
+                manFileInfo = res.GetValue(_argumentManifest);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("manifest argument error.");
+                return false;
+            }
+
+            if (manFileInfo == null)
+            {
+                Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+                return false;
+            }
+
+
+            var absolutePath = manFileInfo.FullName;
+            if (string.IsNullOrEmpty(absolutePath))
+            {
+                Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+
+                return false;
+            }
+            
+            if (File.Exists(absolutePath))
+            {
+                if(!replaceOnFound)
+                {
+                    Console.Error.WriteLine($"manifest file found at [{manFileInfo}], use -force if youd like to replace it");
+                
+                    return false;
+                }
+
+                File.Delete(absolutePath);
+            }
+
+            Manifest.CreateAbsolute(absolutePath);
+            
             return true;
         }
         static Argument<FileInfo> _argumentManifest = default!;
@@ -85,6 +130,7 @@ namespace AssetTool.Cli
             rootCommand.Subcommands.Add(CommandList.Setup());
             rootCommand.Subcommands.Add(CommandBuild.Setup());
             rootCommand.Subcommands.Add(CommandAuto.Setup());
+            rootCommand.Subcommands.Add(CommandInit.Setup());
 
             rootCommand.SetAction(parseResult =>
             {
