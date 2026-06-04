@@ -1,4 +1,5 @@
-﻿using Phoenix.AssetTool.Core.AssetBuildOptions;
+﻿using NativeFileDialogNET;
+using Phoenix.AssetTool.Core.AssetBuildOptions;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -162,6 +163,23 @@ namespace Phoenix.AssetTool.Core
                 }
             }
             return tempFile;
+        }
+
+
+        public static bool FolderPicker(out string dir)
+        {
+            dir = "";
+            using var dlg = new NativeFileDialog()
+            .SelectFolder();
+
+            var result = dlg.Open(out string[]? folders, defaultPath: Environment.CurrentDirectory);
+            if (result == DialogResult.Okay && folders != null && folders.Length > 0)
+            {
+                dir = folders[0].Replace('\\', '/');
+                    
+                return true;
+            }
+            return false;
         }
     }
 }

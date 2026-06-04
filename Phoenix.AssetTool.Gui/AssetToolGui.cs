@@ -76,10 +76,7 @@ namespace Phoenix.AssetTool.Gui
                 DarkTheme = Manifest.DarkTheme;
                 AssetOptions.Init();
             }
-            else
-            {
-                DarkTheme = true;
-            }
+            
             UpdateTheme(false);
             Manifest.RegisterNotifyAction(() => {
 
@@ -122,7 +119,7 @@ namespace Phoenix.AssetTool.Gui
         static (bool selected, bool existed, string path) res = (false, false, "");
         static int currentFontSize = 17;
         public static Vector2 BrowserSize;
-        public static bool DarkTheme = false;
+        public static bool DarkTheme = true;
 
         public static void FontSizeUp()
         {
@@ -147,13 +144,13 @@ namespace Phoenix.AssetTool.Gui
                 SetMocha();
             else
                 SetLatte();
-            Console.WriteLine($"upd dark theme {Manifest.DarkTheme} save {save}");
             if (save)
             {
                 Manifest.DarkTheme = DarkTheme;
                 Manifest.Save();
             }
-            AssetBrowserGui.UpdateDirectory();
+            if(Manifest.Loaded)
+                AssetBrowserGui.UpdateDirectory();
         }
         private static void Render(double deltaTime)
         {
@@ -513,7 +510,22 @@ namespace Phoenix.AssetTool.Gui
             return false;
 
         }
-        
+
+        public static bool OpenDirectoryPicker(out string[] filesOut)
+        {
+            using var dlg = new NativeFileDialog()
+            .SelectFolder();
+            DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
+            if (result == DialogResult.Okay && files != null && files.Length > 0)
+            {
+                filesOut = files;
+                return true;
+            }
+            filesOut = [];
+            return false;
+
+        }
+
         public static void ShowHelpTooltip(string desc, bool sameLine = true)
         {
             if (sameLine)
