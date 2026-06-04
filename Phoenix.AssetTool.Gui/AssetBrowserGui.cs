@@ -92,7 +92,7 @@ namespace Phoenix.AssetTool.Gui
                     {
                         if (FileTools.FolderPicker(out var dir))
                         {
-                            var dirToDir = Path.GetRelativePath(dir, Manifest.BaseDirectory).Replace("\\", "/");
+                            var dirToDir = Path.GetRelativePath(Manifest.BaseDirectory, dir).Replace("\\", "/");
                             
                             asset.DirectorySelected = dir;
                             asset.DirectoryValid = !dirToDir.StartsWith("../");

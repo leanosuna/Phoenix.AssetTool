@@ -1,11 +1,7 @@
 ﻿using Phoenix.AssetTool.Cli;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
-using Phoenix.AssetTool.Core.Build;
-using Silk.NET.Vulkan;
 using System.CommandLine;
-using System.CommandLine.Parsing;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace AssetTool.Cli
@@ -14,105 +10,8 @@ namespace AssetTool.Cli
     {
         public const string DefaultPath = "asset-manifest.json";
         public static bool KeepAlive;
-        public static bool TryLoadManifest(ParseResult res, bool silent = false)
-        {
-            FileInfo? manFileInfo = null;
-            try
-            {
-                manFileInfo = res.GetValue(_argumentManifest);
-            }
-            catch(Exception e)
-            {
-                Console.Error.WriteLine("manifest argument error.");
-                return false;
-            }
-
-            if (manFileInfo == null)
-            {
-                if(!silent)
-                    Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-                return false;
-            }
-
-
-            var absolutePath = manFileInfo.FullName;
-            if(string.IsNullOrEmpty(absolutePath))
-            {
-                if (!silent)
-                    Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-
-                return false;
-            }
-            
-
-            if (!File.Exists(absolutePath))
-            {
-                if (!silent)
-                    Console.Error.WriteLine($"manifest file not found at [{manFileInfo}] ");
-                return false;
-            }
-            var fileName = Path.GetFileName(absolutePath);
-
-            if(!silent)
-                Console.WriteLine($"Loading {fileName}");
-            
-            if (!Manifest.Load(absolutePath))
-            {
-                if (!silent)
-                    Console.Error.WriteLine($"manifest failed to load.");
-                return false;
-            }
-            if (!silent)
-                Console.WriteLine($"Found {fileName}");
-
-            return true;
-        }
-
-        public static bool TryCreateManifest(ParseResult res, bool replaceOnFound = false)
-        {
-            FileInfo? manFileInfo = null;
-            try
-            {
-                manFileInfo = res.GetValue(_argumentManifest);
-            }
-            catch (Exception e)
-            {
-                Console.Error.WriteLine("manifest argument error.");
-                return false;
-            }
-
-            if (manFileInfo == null)
-            {
-                Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-                return false;
-            }
-
-
-            var absolutePath = manFileInfo.FullName;
-            if (string.IsNullOrEmpty(absolutePath))
-            {
-                Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-
-                return false;
-            }
-            
-            if (File.Exists(absolutePath))
-            {
-                if(!replaceOnFound)
-                {
-                    Console.Error.WriteLine($"manifest file found at [{manFileInfo}], use -force if youd like to replace it");
-                
-                    return false;
-                }
-
-                File.Delete(absolutePath);
-            }
-
-            Manifest.CreateAbsolute(absolutePath);
-            
-            return true;
-        }
-        static Argument<FileInfo> _argumentManifest = default!;
+        private static Argument<FileInfo> _argumentManifest = default!;
+        
         static void Main(string[] args)
         {
             Manifest.RegisterNotifyAction(() => { AssetOptions.Init(); });
@@ -120,8 +19,7 @@ namespace AssetTool.Cli
             _argumentManifest = new("manifest")
             {
                 Description = "The asset manifest file",
-                Arity = ArgumentArity.ZeroOrOne
-                //DefaultValueFactory = ()=> { return new FileInfo("a"); }
+                Arity = ArgumentArity.ZeroOrOne                
             };
             
             RootCommand rootCommand = new("Register and build assets to be used in your Phoenix project");
@@ -135,8 +33,8 @@ namespace AssetTool.Cli
             rootCommand.SetAction(parseResult =>
             {
                 var res = parseResult.GetValue(_argumentManifest);
-
-                //Console.WriteLine($"root parsing {res}");
+                if(res == null)
+                    Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
 
             });
 
@@ -178,5 +76,87 @@ namespace AssetTool.Cli
             pendingLoop = false;
         }
 
+        public static bool TryParse(ParseResult res, out string absolutePath, bool silent = false)
+        {
+            absolutePath = "";
+            FileInfo? manFileInfo = null;
+            try
+            {
+                manFileInfo = res.GetValue(_argumentManifest);
+
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine("manifest argument error.");
+                return false;
+            }
+
+            if (manFileInfo == null)
+            {
+                if (!silent)
+                    Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+                return false;
+            }
+
+            absolutePath = manFileInfo.FullName;
+
+            if (string.IsNullOrEmpty(absolutePath))
+            {
+                if (!silent)
+                    Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+
+                return false;
+            }
+            return true;
+        }
+        public static bool TryLoadManifest(ParseResult res, bool silent = false)
+        {
+            if (!TryParse(res, out var absolutePath, silent))
+                return false;
+
+            if (!File.Exists(absolutePath))
+            {
+                if (!silent)
+                    Console.Error.WriteLine($"manifest file not found at [{absolutePath}] ");
+                return false;
+            }
+            var fileName = Path.GetFileName(absolutePath);
+
+            if (!silent)
+                Console.WriteLine($"Loading {fileName}");
+
+            if (!Manifest.Load(absolutePath))
+            {
+                if (!silent)
+                    Console.Error.WriteLine($"manifest failed to load.");
+                return false;
+            }
+            if (!silent)
+                Console.WriteLine($"Found {fileName}");
+
+            return true;
+        }
+
+        public static bool TryCreateManifest(ParseResult res, bool replaceOnFound = false)
+        {
+            if (!TryParse(res, out var absolutePath, silent: false))
+                return false;
+
+            if (File.Exists(absolutePath))
+            {
+                if (!replaceOnFound)
+                {
+                    Console.Error.WriteLine($"manifest file found at [{absolutePath}], use -force if youd like to replace it");
+
+                    return false;
+                }
+
+                File.Delete(absolutePath);
+            }
+
+            Manifest.CreateAbsolute(absolutePath);
+
+            return true;
+        }
     }
 }

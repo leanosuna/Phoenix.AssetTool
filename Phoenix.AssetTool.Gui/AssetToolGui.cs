@@ -2,19 +2,12 @@
 using NativeFileDialogNET;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
-using Phoenix.AssetTool.Core.Model;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
-using System;
-using System.Diagnostics;
-using System.Diagnostics.Tracing;
-using System.Drawing;
-using System.IO;
 using System.Numerics;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Phoenix.AssetTool.Gui
 {
