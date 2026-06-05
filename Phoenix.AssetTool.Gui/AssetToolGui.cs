@@ -548,6 +548,10 @@ namespace Phoenix.AssetTool.Gui
         private static void FramebufferResize(Vector2D<int> size)
         {
             GL.Viewport(size);
+            var offset = 50;
+            if (BrowserSize.X >= size.X - offset)
+                BrowserSize.X = size.X - offset;
+            BrowserSize.Y = size.Y;
         }
         private static void OnClose()
         {
