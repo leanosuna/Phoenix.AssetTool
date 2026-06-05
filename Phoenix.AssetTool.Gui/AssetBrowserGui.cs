@@ -18,6 +18,8 @@ namespace Phoenix.AssetTool.Gui
         static DirectoryBrowserMeta _directoryBrowserMeta = default!;
         //static List<string> outsideContent = new();
         static List<ExternalAsset> externalAssets = new();
+        static string[] files = [];
+
         public static void UpdateDirectory(bool res = false)
         {
             _directoryBrowserMeta = ProcessDirectoryRec(Manifest.BaseDirectory);
@@ -45,103 +47,17 @@ namespace Phoenix.AssetTool.Gui
             {
                 AssetToolGui.FontSizeDown();
             }
-
-            ImGui.SameLine();
-            ImGui.Text("|");
-            ImGui.SameLine();
-            if (ImGui.Button("Select Files..."))
-            {
-                if (AssetToolGui.OpenAssetFilePicker(out var files))
-                {
-                    List<(string abs, string relative)> paths  = files.Select(f => (f, Path.GetRelativePath(Manifest.BaseDirectory, f).Replace("\\", "/"))).ToList();
-                    var outsideContent = paths.FindAll(p => p.relative.StartsWith("../"));
-                    externalAssets = outsideContent.Select(p => new ExternalAsset { Path = p.abs }).ToList();
-
-                    if (externalAssets.Count == 0)
-                    {
-                        paths.ForEach(p => FileTools.AddFile(p.relative, false));
-                        Manifest.Save();
-                        UpdateDirectory();
-                    }
-                    else
-                    {
-                        ImGui.OpenPopup("outside-content");
-                    }
-                }
-
-            }
             
-
-            if (ImGui.BeginPopup("outside-content"))
-            {
-                ImGui.Text("The following items are outside the content folder.");
-                ImGui.Text("Where do we copy them?");
-
-                foreach (var asset in externalAssets)
-                {
-                    ImGui.Text(asset.Path);
-                    ImGui.SameLine();
-
-                    var dirStr = asset.DirectorySet ?
-                        (asset.DirectoryValid ?
-                            $"{asset.DirectorySelected} " :
-                            "invalid directory. must be withing content.")
-                        : $"Select directory...##{asset.Path}";
-
-                    if (ImGui.Button(dirStr))
-                    {
-                        if (FileTools.FolderPicker(out var dir))
-                        {
-                            var dirToDir = Path.GetRelativePath(Manifest.BaseDirectory, dir).Replace("\\", "/");
-                            
-                            asset.DirectorySelected = dir;
-                            asset.DirectoryValid = !dirToDir.StartsWith("../");
-                            asset.DirectorySet = true;
-
-                        }
-                    }
-                }
-
-                if (ImGui.Button("OK"))
-                {
-                    foreach(var e in externalAssets)
-                    {
-                        if(e.DirectorySet && e.DirectoryValid)
-                        {   
-                            var name = Path.GetFileName(e.Path);
-                            var dstPath = Path.Combine(e.DirectorySelected, name);
-                            var relative = Path.GetRelativePath(Manifest.BaseDirectory, dstPath).Replace("\\", "/");
-                            File.Copy(e.Path, dstPath, overwrite: true);
-                            FileTools.AddFile(relative, false);
-                        }
-                    }
-                    Manifest.Save();
-                    UpdateDirectory();
-
-                    externalAssets.Clear();
-                    ImGui.CloseCurrentPopup();
-
-                }
-                ImGui.SameLine();
-                if (ImGui.Button("Cancel"))
-                {
-                    externalAssets.Clear();
-                    ImGui.CloseCurrentPopup();
-                }
-                ImGui.EndPopup();
-            }
-
-
-
+            PopUpOutsideContent();
 
             ImGui.SameLine();
             ImGui.Text("|");
             ImGui.SameLine();
-            col = AssetToolGui.DarkTheme ? FileTools.ColorGreen: FileTools.ColorGreenDark;
+            col = AssetToolGui.DarkTheme ? FileTools.ColorGreen : FileTools.ColorGreenDark;
             ImGui.PushStyleColor(ImGuiCol.Text, col);
             if (ImGui.Button("Build All"))
             {
-                _ = AssetBuildController.StartBuild(rebuild:false, UpdateDirectory);
+                _ = AssetBuildController.StartBuild(rebuild: false, UpdateDirectory);
             }
             ImGui.PopStyleColor();
             ImGui.SameLine();
@@ -152,7 +68,44 @@ namespace Phoenix.AssetTool.Gui
                 _ = AssetBuildController.StartBuild(rebuild: true, UpdateDirectory);
             }
             ImGui.PopStyleColor();
+
+            
+            if (ImGui.Button("Select any file..."))
+            {
+                if (AssetToolGui.OpenAssetFilePicker(out files))
+                {
+                    VerifyContentFolder();
+                }
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Select models..."))
+            {
+                if (AssetToolGui.OpenAssetFilePicker(out files, FileTools.FilterModel))
+                {
+                    VerifyContentFolder();
+                }
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("Select textures..."))
+            {
+                if (AssetToolGui.OpenAssetFilePicker(out files, FileTools.FilterTextures))
+                {
+                    VerifyContentFolder();
+                }
+            }
+            
+            ImGui.SameLine();
+            if (ImGui.Button("Select shaders..."))
+            {
+                if (AssetToolGui.OpenAssetFilePicker(out files, FileTools.FilterShaders))
+                {
+                    VerifyContentFolder();
+                }
+            }
+            
+
             ImGui.NewLine();
+
             AssetBuildGui.DrawBuildWindow(dt);
             ImGui.NewLine();
             ImGui.Separator();
@@ -180,7 +133,86 @@ namespace Phoenix.AssetTool.Gui
             }
         }
 
+        private static void VerifyContentFolder()
+        {
+            List<(string abs, string relative)> paths = files.Select(f => (f, Path.GetRelativePath(Manifest.BaseDirectory, f).Replace("\\", "/"))).ToList();
+            var outsideContent = paths.FindAll(p => p.relative.StartsWith("../"));
+            externalAssets = outsideContent.Select(p => new ExternalAsset { Path = p.abs }).ToList();
 
+            if (externalAssets.Count == 0)
+            {
+                paths.ForEach(p => FileTools.AddFile(p.relative, false));
+                Manifest.Save();
+                UpdateDirectory();
+            }
+            else
+            {
+                ImGui.OpenPopup("outside-content");
+            }
+
+        }
+        
+        private static void PopUpOutsideContent()
+        {
+            if (ImGui.BeginPopup("outside-content"))
+            {
+                ImGui.Text("The following items are outside the content folder.");
+                ImGui.Text("Where do we copy them?");
+
+                foreach (var asset in externalAssets)
+                {
+                    ImGui.Text(asset.Path);
+                    ImGui.SameLine();
+
+                    var dirStr = asset.DirectorySet ?
+                        (asset.DirectoryValid ?
+                            $"{asset.DirectorySelected} " :
+                            "invalid directory. must be withing content.")
+                        : $"Select directory...##{asset.Path}";
+
+                    if (ImGui.Button(dirStr))
+                    {
+                        if (FileTools.FolderPicker(out var dir))
+                        {
+                            var dirToDir = Path.GetRelativePath(Manifest.BaseDirectory, dir).Replace("\\", "/");
+
+                            asset.DirectorySelected = dir;
+                            asset.DirectoryValid = !dirToDir.StartsWith("../");
+                            asset.DirectorySet = true;
+
+                        }
+                    }
+                }
+
+                if (ImGui.Button("OK"))
+                {
+                    foreach (var e in externalAssets)
+                    {
+                        if (e.DirectorySet && e.DirectoryValid)
+                        {
+                            var name = Path.GetFileName(e.Path);
+                            var dstPath = Path.Combine(e.DirectorySelected, name);
+                            var relative = Path.GetRelativePath(Manifest.BaseDirectory, dstPath).Replace("\\", "/");
+                            File.Copy(e.Path, dstPath, overwrite: true);
+                            FileTools.AddFile(relative, false);
+                        }
+                    }
+                    Manifest.Save();
+                    UpdateDirectory();
+
+                    externalAssets.Clear();
+                    ImGui.CloseCurrentPopup();
+
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel"))
+                {
+                    externalAssets.Clear();
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.EndPopup();
+            }
+        }
         private static DirectoryBrowserMeta ProcessDirectoryRec(string currentDir)
         {
             var name = Path.GetFileName(currentDir);

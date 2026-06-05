@@ -8,7 +8,7 @@ namespace Phoenix.AssetTool.Core
 {
     public static class FileTools
     {
-        public static readonly Vector4 ColorWhite = new(1f, 1f, 1f, 1f); 
+        public static readonly Vector4 ColorWhite = new(1f, 1f, 1f, 1f);
         public static readonly Vector4 ColorYellow = new(1f, 1f, 0f, 1f);
         public static readonly Vector4 ColorGreen = new(0f, 1f, 0f, 1f);
         public static readonly Vector4 ColorRed = new(1f, 0f, 0f, 1f);
@@ -21,7 +21,7 @@ namespace Phoenix.AssetTool.Core
         public static readonly Vector4 ColorCyanDark = new(0f, .5f, .5f, 1f);
         public static AssetLoadOptions AssetLoadOptions = default!;
 
-        
+
         public static void ToggleFile(string relative, bool save = true)
         {
             var existing = Manifest.Assets
@@ -34,7 +34,7 @@ namespace Phoenix.AssetTool.Core
                 return;
             }
 
-            
+
             Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
@@ -53,7 +53,7 @@ namespace Phoenix.AssetTool.Core
 
             if (existing != null)
                 return;
-                        
+
             Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
@@ -70,7 +70,7 @@ namespace Phoenix.AssetTool.Core
 
             if (existing == null)
                 return;
-            
+
             Manifest.Assets.Remove(existing);
 
             if (save)
@@ -130,6 +130,11 @@ namespace Phoenix.AssetTool.Core
         //Game Engines    MD2, MD3, MDL, X, B3D, MS3D
         //Motion Capture BVH, ASF/AMC
         //3D Printing	3MF, AMF
+
+        public static string FilterModel => string.Join(",", models.Select(a => a.Substring(1)));
+        public static string FilterTextures => string.Join(",", textures.Select(a => a.Substring(1)));
+        public static string FilterShaders => string.Join(",", shaders.Select(a => a.Substring(1)));
+
         public static AssetType GuessType(string path)
         {
             var type = Path.GetExtension(path).ToLowerInvariant();

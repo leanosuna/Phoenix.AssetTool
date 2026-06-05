@@ -496,12 +496,13 @@ namespace Phoenix.AssetTool.Gui
         }
         
         
-        public static bool OpenAssetFilePicker(out string[] filesOut)
+        public static bool OpenAssetFilePicker(out string[] filesOut, string filter = "*.*")
         {
             using var dlg = new NativeFileDialog()
             .SelectFile()
-            .AddFilter("Asset files", "*.*")
-            .AllowMultiple();
+            .AllowMultiple()
+            .AddFilter("Asset files", filter);
+            
             DialogResult result = dlg.Open(out string[]? files, defaultPath: Environment.CurrentDirectory);
             if (result == DialogResult.Okay && files != null && files.Length > 0)
             {
