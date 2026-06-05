@@ -104,7 +104,7 @@ namespace Phoenix.AssetTool.Core.Texture
             }
         }
 
-        private static (Vector2 size, byte[] data) ImageToBytes(Image<Rgba32> image)
+        public static (Vector2 size, byte[] data) ImageToBytes(Image<Rgba32> image)
         {
             int w = image.Width;
             int h = image.Height;

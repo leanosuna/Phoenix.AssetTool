@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="CascadiaMono.ttf" />
+    <EmbeddedResource Include="tool.png" />
   </ItemGroup>
 
   <ItemGroup>

@@ -2,12 +2,18 @@
 using NativeFileDialogNET;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Phoenix.AssetTool.Core.Texture;
+using Silk.NET.Core;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using System.Numerics;
+using System.Runtime.InteropServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Phoenix.AssetTool.Gui
 {
@@ -37,22 +43,25 @@ namespace Phoenix.AssetTool.Gui
             Window.Render += Render;
             Window.FramebufferResize += FramebufferResize;
             Window.Closing += OnClose;
-            
 
+            
             Window.Run();
 
 
             
-        }
-        public static void Start()
-        {
-
         }
         private static void Load()
         {
             GL = GL.GetApi(Window);
             Window.WindowState = WindowState.Maximized;
             Window.Center();
+
+            using Image<Rgba32> image = Image.Load<Rgba32>(FileTools.ExtractPath("tool.png",""));
+            (Vector2 size, byte[] buffer) data = TextureBinaryWriter.ImageToBytes(image);
+
+            RawImage img = new RawImage((int)data.size.X, (int)data.size.Y, (Memory<byte>)data.buffer);
+
+            Window.SetWindowIcon(ref img);
 
             Log.Enabled = true;
             Log.ClearLog();
