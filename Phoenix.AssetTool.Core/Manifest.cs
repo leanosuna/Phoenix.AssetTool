@@ -51,7 +51,10 @@ namespace Phoenix.AssetTool.Core
             var dir = Path.GetDirectoryName(absolute);
             var name = Path.GetFileName(absolute);
             if (dir is null)
+            {
+                Console.Error.WriteLine("dir cant be null");
                 return false;
+            }
 
             Directory.CreateDirectory(dir);
 

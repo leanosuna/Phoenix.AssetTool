@@ -25,22 +25,25 @@ namespace Phoenix.AssetTool.Cli
 
             command.SetAction(async res =>
             {
-                if (AssetToolCli.TryLoadManifest(res))
+                if (!AssetToolCli.TryLoadManifest(res))
                 {
-                    AssetToolCli.StartBuildPendingLoop();
-
-                    var buildRes = await AssetBuildController.StartBuild(res.GetValue(optRebuild));
-
-                    var resStr = buildRes.State.ToString();
-
-                    AssetToolCli.StopBuildPendingLoop();
-                    Console.WriteLine($"Build {resStr}");
-                    if(buildRes.State == Core.Build.BuildState.FAILED)
-                    {
-                        Console.WriteLine(buildRes.Message);
-                    }
+                    return;
                 }
                 
+                AssetToolCli.StartBuildPendingLoop();
+
+                var buildRes = await AssetBuildController.StartBuild(res.GetValue(optRebuild));
+
+                var resStr = buildRes.State.ToString();
+
+                AssetToolCli.StopBuildPendingLoop();
+                Console.WriteLine($"Build {resStr}");
+                if (buildRes.State == Core.Build.BuildState.FAILED)
+                {
+                    Console.WriteLine(buildRes.Message);
+                    AssetToolCli.ExitCode = -1;
+                }
+           
 
                 
             });

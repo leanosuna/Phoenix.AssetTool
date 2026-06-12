@@ -30,10 +30,11 @@ namespace Phoenix.AssetTool.Cli
 
             command.SetAction(res =>
             {
-                if (AssetToolCli.TryLoadManifest(res))
+                if (!AssetToolCli.TryLoadManifest(res))
                 {
-                    ListFiles(res.GetValue(filterAll),res.GetValue(filterExt));
+                    return;
                 }
+                ListFiles(res.GetValue(filterAll),res.GetValue(filterExt));
             });
 
             return command;

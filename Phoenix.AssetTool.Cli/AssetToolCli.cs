@@ -1,6 +1,7 @@
 ﻿using Phoenix.AssetTool.Cli;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Silk.NET.GLFW;
 using System.CommandLine;
 using System.Text;
 
@@ -10,10 +11,13 @@ namespace AssetTool.Cli
     {
         public const string DefaultPath = "asset-manifest.json";
         public static bool KeepAlive;
+        public static int ExitCode = 0;
         private static Argument<FileInfo> _argumentManifest = default!;
         
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            Console.WriteLine("[ Phoenix Asset Tool ]");
+
             Manifest.RegisterNotifyAction(() => { AssetOptions.Init(); });
 
             _argumentManifest = new("manifest")
@@ -32,31 +36,33 @@ namespace AssetTool.Cli
 
             rootCommand.SetAction(parseResult =>
             {
-                var res = parseResult.GetValue(_argumentManifest);
-                if(res == null)
-                    Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-
+                if (TryLoadManifest(parseResult, silent: false))
+                {
+                    Console.Error.WriteLine("Command not found.");
+                    ExitCode = -1;
+                }
+                
+                //Console.WriteLine(res);
             });
 
             ParseResult parseResult = rootCommand.Parse(args);
             
             parseResult.Invoke();
 
-
             if(KeepAlive)
                 Console.ReadLine();
+
+            return ExitCode;
         }
         static bool pendingLoop = false;
         public static void StartBuildPendingLoop()
         {
             pendingLoop = true;
-            Console.Clear();
-
+            
             Task.Run(() => {
                 int loading = 0;
                 while (pendingLoop)
                 {
-                    Console.Clear();
                     StringBuilder sb = new StringBuilder();
                     sb.Append($"Building");
                     for (int i = 0; i < loading; i++)
@@ -88,6 +94,7 @@ namespace AssetTool.Cli
             catch (Exception e)
             {
                 Console.Error.WriteLine("manifest argument error.");
+                ExitCode = -1;
                 return false;
             }
 
@@ -95,6 +102,7 @@ namespace AssetTool.Cli
             {
                 if (!silent)
                     Console.Error.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
+                ExitCode = -1;
                 return false;
             }
 
@@ -104,7 +112,7 @@ namespace AssetTool.Cli
             {
                 if (!silent)
                     Console.WriteLine("manifest argument empty.\n Usage: pat [manifest path] [command]");
-
+                ExitCode = -1;
                 return false;
             }
             return true;
@@ -118,21 +126,20 @@ namespace AssetTool.Cli
             {
                 if (!silent)
                     Console.Error.WriteLine($"manifest file not found at [{absolutePath}] ");
+                ExitCode = -1;
                 return false;
             }
             var fileName = Path.GetFileName(absolutePath);
-
-            if (!silent)
-                Console.WriteLine($"Loading {fileName}");
 
             if (!Manifest.Load(absolutePath))
             {
                 if (!silent)
                     Console.Error.WriteLine($"manifest failed to load.");
+                ExitCode = -1;
                 return false;
             }
             if (!silent)
-                Console.WriteLine($"Found {fileName}");
+                Console.WriteLine($"Loaded {fileName}");
 
             return true;
         }
@@ -153,10 +160,8 @@ namespace AssetTool.Cli
 
                 File.Delete(absolutePath);
             }
-
-            Manifest.CreateAbsolute(absolutePath);
-
-            return true;
+            
+            return Manifest.CreateAbsolute(absolutePath);
         }
     }
 }

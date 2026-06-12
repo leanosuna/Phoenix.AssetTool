@@ -25,7 +25,12 @@ namespace Phoenix.AssetTool.Cli
             command.SetAction(res =>
             {
                 var forced = res.GetValue(force);
-                AssetToolCli.TryCreateManifest(res, forced);
+                if(!AssetToolCli.TryCreateManifest(res, forced))
+                {
+                    Console.Error.WriteLine("Init failed");
+                    return;
+                }
+                Console.WriteLine("Init OK");
             });
 
             return command;

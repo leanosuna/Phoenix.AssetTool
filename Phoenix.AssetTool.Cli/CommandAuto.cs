@@ -21,22 +21,23 @@ namespace Phoenix.AssetTool.Cli
 
             command.SetAction(static async res =>
             {
-                if (AssetToolCli.TryLoadManifest(res))
+                if (!AssetToolCli.TryLoadManifest(res))
                 {
-                    AssetToolCli.KeepAlive = true;
+                    return;
+                }
+                AssetToolCli.KeepAlive = true;
 
-                    Console.WriteLine("Auto mode enabled.");
+                Console.WriteLine("Auto mode enabled.");
 
-                    foreach(var a in Manifest.Assets)
-                        absolutePaths.TryAdd(Path.Combine(Manifest.BaseDirectory.Replace('\\', '/'), a.RelativePath).Replace('\\', '/'), a);
+                foreach(var a in Manifest.Assets)
+                    absolutePaths.TryAdd(Path.Combine(Manifest.BaseDirectory.Replace('\\', '/'), a.RelativePath).Replace('\\', '/'), a);
                     
 
-                    var mfw = new MultiFileWatcher(absolutePaths.Keys);
-                    mfw.FileChanged += path => 
-                    {
-                        _ = FileChanged(path); 
-                    };
-                }
+                var mfw = new MultiFileWatcher(absolutePaths.Keys);
+                mfw.FileChanged += path => 
+                {
+                    _ = FileChanged(path); 
+                };
 
                 
 
@@ -95,7 +96,6 @@ namespace Phoenix.AssetTool.Cli
 
                     buildList.Clear();
 
-                    Console.Clear();
                     AssetToolCli.StartBuildPendingLoop();
                     var buildRes = await AssetBuildController.StartBuild(buildCpy, true);
                     
