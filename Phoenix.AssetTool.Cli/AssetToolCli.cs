@@ -35,6 +35,7 @@ namespace AssetTool.Cli
             rootCommand.Subcommands.Add(CommandInit.Setup());
             rootCommand.Subcommands.Add(CommandAdd.Setup());
             rootCommand.Subcommands.Add(CommandRemove.Setup());
+            rootCommand.Subcommands.Add(CommandClean.Setup());
 
             rootCommand.SetAction(parseResult =>
             {

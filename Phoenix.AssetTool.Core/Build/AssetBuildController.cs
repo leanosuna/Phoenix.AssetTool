@@ -35,6 +35,9 @@ namespace Phoenix.AssetTool.Core.Build
             Status.BuildList.Clear();
             foreach (var asset in assets)
             {
+                if (asset.RelativePath.StartsWith("ContentBin/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 Console.WriteLine($"Building {asset.RelativePath}");
                 Status.BuildList.Add(new AssetBuildStatus
                 {

@@ -108,6 +108,9 @@ namespace Phoenix.AssetTool.Core
                     .GetRelativePath(Manifest.BaseDirectory, file)
                     .Replace('\\', '/');
 
+                if (relative.StartsWith("ContentBin/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 if (_addedDirectories[absoluteDir])
                     AddFile(relative, false);
                 else
@@ -128,6 +131,9 @@ namespace Phoenix.AssetTool.Core
                 var relative = Path
                     .GetRelativePath(Manifest.BaseDirectory, file)
                     .Replace('\\', '/');
+
+                if (relative.StartsWith("ContentBin/", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 AddFile(relative, false, silent);
                 

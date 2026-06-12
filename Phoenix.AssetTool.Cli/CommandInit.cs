@@ -31,6 +31,9 @@ namespace Phoenix.AssetTool.Cli
                     return;
                 }
                 Console.WriteLine("Init OK");
+
+                if (forced)
+                    CommandClean.Clean();
             });
 
             return command;
