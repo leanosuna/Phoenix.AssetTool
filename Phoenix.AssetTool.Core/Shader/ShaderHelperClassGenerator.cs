@@ -44,10 +44,10 @@ namespace Phoenix.AssetTool.Core.Shader
 
             sb.AppendLine($"\tpublic partial class {className} : ShaderHelper");
             sb.AppendLine("\t{");
-            
+
             foreach (var u in uniforms)
             {
-                if(u.Type == UniformType.Sampler2D)
+                if (u.Type == UniformType.Sampler2D || u.Type == UniformType.SamplerCube)
                 {
                     sb.AppendLine($"\t\tpublic ShaderTextureUniform {u.Name} {{get; private set;}}");
                 }
@@ -67,7 +67,7 @@ namespace Phoenix.AssetTool.Core.Shader
             int slot = 0;
             foreach (var u in uniforms)
             {
-                if(u.Type == UniformType.Sampler2D)
+                if(u.Type == UniformType.Sampler2D || u.Type == UniformType.SamplerCube)
                 {
                     sb.AppendLine(
                         $"\t\t\t{u.Name} = new ShaderTextureUniform(_shader, \"{u.Name}\", {slot});");
