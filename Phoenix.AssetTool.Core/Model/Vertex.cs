@@ -7,8 +7,8 @@ namespace Phoenix.AssetTool.Core.Model
     public struct Vertex
     {
         public Vector3 Position;
-        public Vector3 Normal;
         public Vector2 TexCoords;
+        public Vector3 Normal;
         public Vector3 Tangent;
         public Vector3 Bitangent;
         public Vector4 BoneIds;

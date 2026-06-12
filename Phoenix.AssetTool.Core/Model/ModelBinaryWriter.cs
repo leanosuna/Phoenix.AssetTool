@@ -196,14 +196,23 @@ namespace Phoenix.AssetTool.Core.Model
                     //Log.Debug($"test w{tv.Weights.ToStrF2()} bid {tv.BoneIds.ToStrInt()}");
 
                     bw.Write(mesh.Vertices.Length);
-                    //Log.Debug($"tex {mesh.Vertices.Length}");
 
-                    foreach (var v in mesh.Vertices)
+                    foreach (ref readonly var v in mesh.Vertices.AsSpan())
                     {
-                        //Log.Debug($"tex {v.TexCoords.ToStrF2()}");
-                        //Log.Debug($"bid {v.BoneIds.ToStrInt()} w {v.Weights.ToStrF2()}");
+                        bw.Write(v.Position);
+                        bw.Write(v.TexCoords);
+                        bw.Write(v.Normal);
+                        if (options.Tangents)
+                        {
+                            bw.Write(v.Tangent);
+                            bw.Write(v.Bitangent);
+                        }
+                        if (options.IsAnimated)
+                        {
+                            bw.Write(v.BoneIds);
+                            bw.Write(v.Weights);
+                        }
                     }
-                    var sz = bw.Write(mesh.Vertices);
 
                     //Log.Debug($"tex {mesh.Vertices[0].TexCoords.ToStrF2()} sz {sz}");
                 }
