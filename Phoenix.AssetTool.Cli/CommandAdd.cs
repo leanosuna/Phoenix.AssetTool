@@ -12,11 +12,11 @@ namespace Phoenix.AssetTool.Cli
         {
             Argument<string[]> files = new("files")
             {
-                Description = "One or more file paths to add to the manifest",
+                Description = "One or more file paths or directories to add to the manifest",
                 Arity = ArgumentArity.OneOrMore
             };
 
-            Command command = new("commandadd", "Add files to the manifest")
+            Command command = new("add", "Add files to the manifest")
             {
                 files
             };
@@ -31,32 +31,51 @@ namespace Phoenix.AssetTool.Cli
 
                 foreach (var filePath in filePaths)
                 {
-                    var absolutePath = Path.GetFullPath(filePath);
-
-                    if (!File.Exists(absolutePath))
+                    var root = 
+                        filePath.Equals(".", StringComparison.InvariantCulture) ||
+                        filePath.Equals(Manifest.BaseDirectory, StringComparison.InvariantCultureIgnoreCase);
+                    
+                    var resolvedPath =  root? Manifest.BaseDirectory : filePath;
+                    var absolutePath = Path.GetFullPath(resolvedPath);
+                    
+                    if (Directory.Exists(absolutePath))
                     {
-                        Console.Error.WriteLine($"error: file '{filePath}' not found.");
-                        AssetToolCli.ExitCode = -1;
-                        continue;
+                        FileTools.AddDirectory(absolutePath, silent: false);
+                        if (root)
+                            break;
                     }
-
-                    var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath)
-                        .Replace('\\', '/');
-
-                    if (relative.StartsWith(".."))
+                    else if (File.Exists(absolutePath))
                     {
-                        Console.Error.WriteLine($"error: file '{filePath}' is outside the Content directory.");
-                        AssetToolCli.ExitCode = -1;
-                        continue;
+                        AddFile(absolutePath);
                     }
-
-                    FileTools.AddFile(relative, false);
-                    Console.WriteLine($"Added '{relative}'");
+                    else
+                    {
+                        Console.Error.WriteLine($"error: '{filePath}' not found.");
+                        AssetToolCli.ExitCode = -1;
+                    }
                 }
                 Manifest.Save();
             });
 
             return command;
+        }
+
+       
+
+        private static void AddFile(string absolutePath)
+        {
+            var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath)
+                .Replace('\\', '/');
+
+            if (relative.StartsWith(".."))
+            {
+                Console.Error.WriteLine($"error: file '{absolutePath}' is outside the Content directory.");
+                AssetToolCli.ExitCode = -1;
+                return;
+            }
+
+            FileTools.AddFile(relative, save: false, silent: false);
+            Console.WriteLine($"Added '{relative}'");
         }
     }
 }

@@ -45,22 +45,31 @@ namespace Phoenix.AssetTool.Core
                 Manifest.Save();
         }
 
-        public static void AddFile(string relative, bool save = true)
+        public static bool AddFile(string relative, bool save = true, bool silent = true)
         {
+            var type = GuessType(relative);
+            if (type == AssetType.Unknown)
+                return false;
+
             var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
-                return;
+                return false;
                         
             Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
-                Type = GuessType(relative)
+                Type = type
             });
+
+            if (!silent)
+                Console.WriteLine($"added {relative}");
             if (save)
                 Manifest.Save();
+
+            return true;
         }
         public static void RemoveFile(string relative, bool save = true)
         {
@@ -106,6 +115,26 @@ namespace Phoenix.AssetTool.Core
             }
             Manifest.Save();
         }
+
+        public static void AddDirectory(string absoluteDir, bool silent = true)
+        {
+            var files = Directory.EnumerateFiles(
+                absoluteDir,
+                "*.*",
+                SearchOption.AllDirectories);
+
+            foreach (var file in files)
+            {
+                var relative = Path
+                    .GetRelativePath(Manifest.BaseDirectory, file)
+                    .Replace('\\', '/');
+
+                AddFile(relative, false, silent);
+                
+            }
+            Manifest.Save();
+        }
+
 
         public static (bool tracked, bool built) VerifyAsset(AssetEntry? asset)
         {

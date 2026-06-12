@@ -16,7 +16,7 @@ namespace Phoenix.AssetTool.Cli
                 Arity = ArgumentArity.OneOrMore
             };
 
-            Command command = new("commandremove", "Remove files from the manifest")
+            Command command = new("rem", "Remove files from the manifest")
             {
                 files
             };
