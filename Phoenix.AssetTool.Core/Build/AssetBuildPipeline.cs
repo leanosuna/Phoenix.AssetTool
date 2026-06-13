@@ -14,14 +14,10 @@ namespace Phoenix.AssetTool.Core.Build
         {
             AssetOptions.Save();
 
-            var taskList = new List<Task>
-            {
-                Task.Run(() =>
-                {
-                    ShaderAssetHandler.Build(buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList());
-                })
-            };
+            var shaderItems = buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList();
+            ShaderAssetHandler.Build(shaderItems);
 
+            var taskList = new List<Task>();
             taskList.AddRange(buildList.Select(status =>
                 Task.Run(() =>
                 {

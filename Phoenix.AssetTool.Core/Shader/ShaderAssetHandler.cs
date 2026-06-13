@@ -28,8 +28,6 @@ namespace Phoenix.AssetTool.Core.Shader
 
                 return;
             }
-            GLCompiler.Init();
-            
             foreach (var s in shaders)
             {
                 s.ProcessFiles();
@@ -69,7 +67,6 @@ namespace Phoenix.AssetTool.Core.Shader
                 s.StatusB?.State = AssetBuildState.Built;
                 
             }
-            GLCompiler.Dispose();
         }
 
         static bool FindPairs(List<AssetBuildStatus> items)
