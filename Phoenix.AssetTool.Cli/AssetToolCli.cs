@@ -1,7 +1,10 @@
 ﻿using Phoenix.AssetTool.Cli;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
-using Silk.NET.GLFW;
+using Phoenix.AssetTool.Core.Shader;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 using System.CommandLine;
 using System.Text;
 
@@ -49,6 +52,8 @@ namespace AssetTool.Cli
             });
 
             ParseResult parseResult = rootCommand.Parse(args);
+            
+            InitGL();
             
             parseResult.Invoke();
 
@@ -165,6 +170,27 @@ namespace AssetTool.Cli
             }
             
             return Manifest.CreateAbsolute(absolutePath);
+        }
+
+        static void InitGL()
+        {
+            try
+            {
+                var options = WindowOptions.Default;
+                options.Size = new Vector2D<int>(1, 1);
+                options.IsVisible = false;
+                options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, new APIVersion(4, 1));
+
+                var window = Window.Create(options);
+                window.Initialize();
+                var gl = GL.GetApi(window);
+                GLCompiler.Init(gl);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not initialize OpenGL context: {ex.Message}");
+                ExitCode = -1;
+            }
         }
     }
 }

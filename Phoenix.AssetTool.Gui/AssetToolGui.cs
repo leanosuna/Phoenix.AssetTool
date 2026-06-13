@@ -2,6 +2,7 @@
 using NativeFileDialogNET;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Phoenix.AssetTool.Core.Shader;
 using Phoenix.AssetTool.Core.Texture;
 using Silk.NET.Core;
 using Silk.NET.Input;
@@ -12,8 +13,6 @@ using Silk.NET.Windowing;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Phoenix.AssetTool.Gui
 {
@@ -29,6 +28,7 @@ namespace Phoenix.AssetTool.Gui
         static int WindowHeight => Window.Size.Y;
         public static void Main()
         {
+            
             var options = WindowOptions.Default;
             options.Size = new Vector2D<int>(1280, 720);
             options.Title = "Phoenix Asset Tool";
@@ -52,7 +52,12 @@ namespace Phoenix.AssetTool.Gui
         }
         private static void Load()
         {
+
+            var backend = Window.GetType().Name;
+            Console.WriteLine($"Windowing backend: {backend}");
+        
             GL = GL.GetApi(Window);
+            GLCompiler.Init(GL);
             Window.WindowState = WindowState.Maximized;
             Window.Center();
 

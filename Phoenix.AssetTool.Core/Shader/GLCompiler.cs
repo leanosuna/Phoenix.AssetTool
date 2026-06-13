@@ -1,7 +1,5 @@
 ﻿using Phoenix.AssetTool.Core.Model;
-using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,11 +8,10 @@ namespace Phoenix.AssetTool.Core.Shader
     public static class GLCompiler
     {
         private static GL GL = default!;
-        private static IWindow _window = default!;
-        public static void Set(GL gl)
+        
+        public static void Init(GL gl)
         {
             GL = gl;
-            
         }
 
         
@@ -82,34 +79,7 @@ namespace Phoenix.AssetTool.Core.Shader
             
             return new CompileResult { Success = true };
         }
-
-        public static void Init()
-        {
-            
-            var options = WindowOptions.Default;
-            options.Size = new Vector2D<int>(1, 1);
-            options.IsVisible = false;
-            var glApi = new APIVersion(4, 1);
-            options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, glApi);
-
-            _window = Window.Create(options);
-            _window.Initialize();
-            GL = GL.GetApi(_window);
-        }
-        public static void Dispose()
-        {
-            _window.Dispose();
-        }
     }
-
-    internal enum ContextState
-    {
-        Invalid,
-        Creating,
-        Set
-        //SetFromGui
-    }
-
 
     public class CompileResult
     {
