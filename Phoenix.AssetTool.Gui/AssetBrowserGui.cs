@@ -131,8 +131,24 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.EndPopup();
             }
 
+            ImGui.SameLine();
+            if(ImGui.Button("All"))
+            {
+                var contentDir = Path.Combine(Manifest.BaseDirectory, "Content");
+                var targetDir = Directory.Exists(contentDir) ? contentDir : Manifest.BaseDirectory;
+                Log.Info($"Adding all files from {targetDir}...");
+                FileTools.AddDirectory(targetDir);
+                Log.Info("Done.");
+                UpdateDirectory();
+            }
+            if(ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                ImGui.Text("Add all files in Content folder");
+                ImGui.EndTooltip();
+            }
 
-
+            ImGui.SameLine();
 
             ImGui.SameLine();
             ImGui.Text("|");

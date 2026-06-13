@@ -52,10 +52,6 @@ namespace Phoenix.AssetTool.Gui
         }
         private static void Load()
         {
-
-            var backend = Window.GetType().Name;
-            Console.WriteLine($"Windowing backend: {backend}");
-        
             GL = GL.GetApi(Window);
             GLCompiler.Init(GL);
             Window.WindowState = WindowState.Maximized;
