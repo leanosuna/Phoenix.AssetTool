@@ -4,9 +4,6 @@ using Phoenix.AssetTool.Core.Build;
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.Text;
-using System.Timers;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Phoenix.AssetTool.Cli
 {
@@ -19,7 +16,7 @@ namespace Phoenix.AssetTool.Cli
             {
             };
 
-            command.SetAction(static async res =>
+            command.SetAction(static res =>
             {
                 if (!AssetToolCli.TryLoadManifest(res))
                 {
@@ -36,10 +33,8 @@ namespace Phoenix.AssetTool.Cli
                 var mfw = new MultiFileWatcher(absolutePaths.Keys);
                 mfw.FileChanged += path => 
                 {
-                    _ = FileChanged(path); 
+                    FileChanged(path); 
                 };
-
-                
 
             });
 
@@ -71,11 +66,10 @@ namespace Phoenix.AssetTool.Cli
         static List<AssetEntry> buildList = new();
 
         static Dictionary<string, AssetEntry> absolutePaths = new();
-        private static async Task FileChanged(string file)
+        private static void FileChanged(string file)
         {
             file = file.Replace('\\', '/');
 
-            //Console.WriteLine($"change detected: {file} ");
             if (absolutePaths.TryGetValue(file, out var asset))
             {
                 Console.WriteLine($"asset {asset.RelativePath} changed");
@@ -96,22 +90,7 @@ namespace Phoenix.AssetTool.Cli
 
                     buildList.Clear();
 
-                    AssetToolCli.StartBuildPendingLoop();
-                    var buildRes = await AssetBuildController.StartBuild(buildCpy, true);
-                    
-                    var resStr = buildRes.State.ToString();
-
-                    AssetToolCli.StopBuildPendingLoop();
-
-                    var now = DateTime.Now;
-                    var time = $"{now:HH:mm:ss}";
-
-                    Console.WriteLine($"[{time}] Build {resStr}");
-                    if (buildRes.State == Core.Build.BuildState.FAILED)
-                    {
-                        Console.WriteLine(buildRes.Message);
-                    }
-
+                    AssetToolCli.EnqueueBuild(buildCpy);
                 }
 
             }

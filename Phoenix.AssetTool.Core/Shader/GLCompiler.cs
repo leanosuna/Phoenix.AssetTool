@@ -8,7 +8,7 @@ namespace Phoenix.AssetTool.Core.Shader
     public static class GLCompiler
     {
         private static GL GL = default!;
-        
+
         public static void Init(GL gl)
         {
             GL = gl;
@@ -17,8 +17,6 @@ namespace Phoenix.AssetTool.Core.Shader
         
         public static CompileResult Compile(string vertSource, string fragSource)
         {
-            //return new CompileResult { Success = true };
-
             var result = LoadShader(ShaderType.VertexShader, vertSource, out uint vertex);
             if (!result.Success)
                 return result;

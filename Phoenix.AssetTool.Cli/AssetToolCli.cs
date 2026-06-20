@@ -1,6 +1,7 @@
 ﻿using Phoenix.AssetTool.Cli;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Shader;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -16,7 +17,17 @@ namespace AssetTool.Cli
         public static bool KeepAlive;
         public static int ExitCode = 0;
         private static Argument<FileInfo> _argumentManifest = default!;
+
+        private static IWindow? _glWindow;
+        private static readonly System.Collections.Concurrent.ConcurrentQueue<List<AssetEntry>> _buildQueue = new();
+        private static readonly System.Threading.SemaphoreSlim _buildSignal = new(0);
         
+        public static void EnqueueBuild(List<AssetEntry> assets)
+        {
+            _buildQueue.Enqueue(assets);
+            _buildSignal.Release();
+        }
+
         static int Main(string[] args)
         {
             Console.WriteLine("[ Phoenix Asset Tool ]");
@@ -58,9 +69,38 @@ namespace AssetTool.Cli
             parseResult.Invoke();
 
             if(KeepAlive)
-                Console.ReadLine();
+                ProcessBuildLoop();
 
             return ExitCode;
+        }
+
+        private static void ProcessBuildLoop()
+        {
+            Console.WriteLine("Press any key to exit.");
+            while (true)
+            {
+                if (Console.KeyAvailable)
+                {
+                    Console.ReadKey(true);
+                    Console.WriteLine("Exiting auto mode.");
+                    break;
+                }
+
+                if (_buildSignal.Wait(100))
+                {
+                    while (_buildQueue.TryDequeue(out var assets))
+                    {
+                        StartBuildPendingLoop();
+                        var buildRes = AssetBuildController.StartBuild(assets, true).GetAwaiter().GetResult();
+                        StopBuildPendingLoop();
+                        var now = DateTime.Now;
+                        Console.WriteLine();
+                        Console.WriteLine($"[{now:HH:mm:ss}] Build {buildRes.State}");
+                        if (buildRes.State == Phoenix.AssetTool.Core.Build.BuildState.FAILED)
+                            Console.WriteLine(buildRes.Message);
+                    }
+                }
+            }
         }
         static bool pendingLoop = false;
         public static void StartBuildPendingLoop()
@@ -71,18 +111,14 @@ namespace AssetTool.Cli
                 int loading = 0;
                 while (pendingLoop)
                 {
-                    StringBuilder sb = new StringBuilder();
-                    sb.Append($"Building");
-                    for (int i = 0; i < loading; i++)
-                        sb.Append(".");
-
-                    Console.WriteLine(sb.ToString());
+                    var dots = loading==0?"   ":new string('.', loading);
+                    Console.Write($"\rBuilding{dots}");
 
                     loading++;
                     loading %= 4;
                     Thread.Sleep(250);
                 }
-                
+
             });
         }
         public static void StopBuildPendingLoop()
@@ -181,9 +217,9 @@ namespace AssetTool.Cli
                 options.IsVisible = false;
                 options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, new APIVersion(4, 1));
 
-                var window = Window.Create(options);
-                window.Initialize();
-                var gl = GL.GetApi(window);
+                _glWindow = Window.Create(options);
+                _glWindow.Initialize();
+                var gl = GL.GetApi(_glWindow);
                 GLCompiler.Init(gl);
             }
             catch (Exception ex)
