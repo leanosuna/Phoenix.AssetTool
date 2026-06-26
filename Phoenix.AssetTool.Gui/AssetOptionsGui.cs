@@ -212,6 +212,20 @@ namespace Phoenix.AssetTool.Gui
                     }
                 }
             }
+            var preT = options.PreTransform;
+            ImGui.Checkbox("PreTransform", ref preT);
+            if (preT)
+            {
+                var scale = options.Scale;
+                if(ImGui.DragFloat("Scale", ref scale, 0.001f, float.Epsilon))
+                {
+                    if (scale < 0)
+                        scale = float.Epsilon;
+                }
+                options.Scale = scale;
+            }
+            options.PreTransform = preT;
+
             ImGui.Separator();
 
             

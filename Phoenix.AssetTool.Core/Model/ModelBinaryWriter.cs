@@ -174,32 +174,35 @@ namespace Phoenix.AssetTool.Core.Model
             bw.Write(options.IsAnimated);
             bw.Write(options.Tangents);
             bw.Write(parts.Count);
-            //Log.Debug($"parts {parts.Count}");
-
+            
             foreach (var part in parts)
             {
                 bw.Write(part.Name);
                 bw.Write(part.Meshes.Count);
-                //Log.Debug($"part {part.Name}");
-                //Log.Debug($"vx sz {Marshal.SizeOf<Vertex>()}");
                 foreach (var mesh in part.Meshes)
                 {
                     bw.Write(mesh.Name);
                     bw.Write(mesh.MaterialIndex);
-                    bw.Write(mesh.Transform);
+
+                    var mt = mesh.Transform;
+                    bw.Write(options.PreTransform);
+                    
+                    if(!options.PreTransform)
+                        bw.Write(mt);
 
                     bw.Write(mesh.Indices.Length);
                     bw.Write(mesh.Indices);
                     
-                    //Log.Debug($"m {mesh.Name}");
-                    //var tv = mesh.Vertices[0];
-                    //Log.Debug($"test w{tv.Weights.ToStrF2()} bid {tv.BoneIds.ToStrInt()}");
-
                     bw.Write(mesh.Vertices.Length);
 
+                    var smx = Matrix4x4.CreateScale(options.Scale);
                     foreach (ref readonly var v in mesh.Vertices.AsSpan())
                     {
-                        bw.Write(v.Position);
+                        var pos = options.PreTransform? 
+                            Vector3.Transform(v.Position, mesh.Transform * smx) : 
+                            v.Position;
+                        
+                        bw.Write(pos);
                         bw.Write(v.TexCoords);
                         bw.Write(v.Normal);
                         if (options.Tangents)
