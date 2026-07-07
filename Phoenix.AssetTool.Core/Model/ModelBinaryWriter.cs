@@ -28,13 +28,13 @@ namespace Phoenix.AssetTool.Core.Model
     public sealed class ModelBinaryWriter
     {
         const int MAX_BONE_INFLUENCE = 4;
-        
-        public static unsafe List<string> Build(AssetBuildStatus status, ModelLoadOptions options, 
+
+        public static unsafe List<string> Build(AssetBuildStatus status, ModelLoadOptions options,
             string sourcePath, string outputPath)
         {
             List<string> texNames = new List<string>();
 
-            if(OperatingSystem.IsLinux())
+            if (OperatingSystem.IsLinux())
             {
                 var path = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libassimp.so.5");
                 NativeLibrary.Load(path);
@@ -54,18 +54,21 @@ namespace Phoenix.AssetTool.Core.Model
             var modelProcessData = new ModelProcessData { Status = status, Scene = scene, LoadOptions = options };
 
             ProcessNode(scene->MRootNode, Matrix4x4.Identity, modelProcessData);
-            
+
             status.Step = 0;
             status.MaxSteps = 1;
 
             if (options.ExtractTextures)
                 texNames = ExtractTextures(outputPath, modelProcessData);
-            
-            if(options.IsAnimated)
+
+            if (options.IsAnimated)
             {
                 var (animations, data) = AnimationLoader.ProcessAnimations(options.AnimationFiles, modelProcessData.BoneInfoMap);
                 modelProcessData.Animations = animations;
                 modelProcessData.AnimationLoadData = data;
+
+                foreach (var anim in animations)
+                    anim.Precompute(data.AnimatorNodes, data.InverseGlobalTransform);
             }
 
 
@@ -80,7 +83,7 @@ namespace Phoenix.AssetTool.Core.Model
             List<string> texNames = new List<string>();
             var scene = modelProcessData.Scene;
             int texCount = (int)scene->MNumTextures;
-            if (scene == null ||  texCount == 0)
+            if (scene == null || texCount == 0)
                 return texNames;
 
             modelProcessData.Status.MaxSteps += texCount;
@@ -95,14 +98,14 @@ namespace Phoenix.AssetTool.Core.Model
                 string name = Marshal.PtrToStringAnsi((nint)tex->MFilename.Data) ?? $"*{i}";
                 name = Path.GetFileNameWithoutExtension(name);
                 texNames.Add(name);
-                
+
                 var outputPath = Path.Combine(modelRoot, $"{name}.bin");
                 var isNormal = name.Contains("Normal", StringComparison.InvariantCultureIgnoreCase);
                 var loadOptions = new TextureLoadOptions
                 {
                     GenerateMipMaps = true,
-                    Format = isNormal? 
-                            AssetCompressionFormat.BC5: 
+                    Format = isNormal ?
+                            AssetCompressionFormat.BC5 :
                             AssetCompressionFormat.BC3,
                     WrapS = TextureWrap.Repeat,
                     WrapT = TextureWrap.Repeat,
@@ -114,7 +117,7 @@ namespace Phoenix.AssetTool.Core.Model
                 var sizeInBytes = 0;
                 var size = new Vector2(tex->MWidth, tex->MHeight);
                 var compressed = tex->MHeight == 0;
-                sizeInBytes = compressed? (int)tex->MWidth : (int)(size.X * size.Y * 4);
+                sizeInBytes = compressed ? (int)tex->MWidth : (int)(size.X * size.Y * 4);
 
                 modelProcessData.textureData[i] = new ExtTexData()
                 {
@@ -128,7 +131,7 @@ namespace Phoenix.AssetTool.Core.Model
                 {
                     Buffer.MemoryCopy(tex->PcData, dst, sizeInBytes, sizeInBytes);
                 }
-                
+
             }
             for (int i = 0; i < texCount; i++)
             {
@@ -136,12 +139,14 @@ namespace Phoenix.AssetTool.Core.Model
                 var etd = modelProcessData.textureData[index];
 
                 etd.BuildTask = etd.Compressed ?
-                    Task.Run(() => {
+                    Task.Run(() =>
+                    {
                         TextureBinaryWriter.Build(etd.PixelData, modelProcessData.Status, etd.Options, etd.OutputPath);
                         Interlocked.Increment(ref modelProcessData.Status.Step);
 
                     }) :
-                    Task.Run(() => {
+                    Task.Run(() =>
+                    {
                         TextureBinaryWriter.Build(etd.Size, etd.PixelData, modelProcessData.Status, etd.Options, etd.OutputPath);
                         Interlocked.Increment(ref modelProcessData.Status.Step);
 
@@ -174,7 +179,7 @@ namespace Phoenix.AssetTool.Core.Model
             bw.Write(options.IsAnimated);
             bw.Write(options.Tangents);
             bw.Write(parts.Count);
-            
+
             foreach (var part in parts)
             {
                 bw.Write(part.Name);
@@ -186,22 +191,22 @@ namespace Phoenix.AssetTool.Core.Model
 
                     var mt = mesh.Transform;
                     bw.Write(options.PreTransform);
-                    
-                    if(!options.PreTransform)
+
+                    if (!options.PreTransform)
                         bw.Write(mt);
 
                     bw.Write(mesh.Indices.Length);
                     bw.Write(mesh.Indices);
-                    
+
                     bw.Write(mesh.Vertices.Length);
 
                     var smx = Matrix4x4.CreateScale(options.Scale);
                     foreach (ref readonly var v in mesh.Vertices.AsSpan())
                     {
-                        var pos = options.PreTransform? 
-                            Vector3.Transform(v.Position, mesh.Transform * smx) : 
+                        var pos = options.PreTransform ?
+                            Vector3.Transform(v.Position, mesh.Transform * smx) :
                             v.Position;
-                        
+
                         bw.Write(pos);
                         bw.Write(v.TexCoords);
                         bw.Write(v.Normal);
@@ -222,15 +227,15 @@ namespace Phoenix.AssetTool.Core.Model
             }
             bw.Write(options.ExtractTextures);
 
-            if(options.ExtractTextures)
+            if (options.ExtractTextures)
             {
                 bw.Write(modelProcessData.textureData.Length);
-                foreach(var tex in modelProcessData.textureData)
+                foreach (var tex in modelProcessData.textureData)
                 {
                     bw.Write(tex.Name);
                 }
             }
-            
+
             if (options.IsAnimated)
             {
                 var data = modelProcessData.AnimationLoadData;
@@ -240,7 +245,7 @@ namespace Phoenix.AssetTool.Core.Model
                 //Log.Debug($"nodes {data.AnimatorNodes.Count}");
 
                 foreach (var node in data.AnimatorNodes)
-                {                   
+                {
                     bw.Write(node.Name);
                     bw.Write(node.IsBone);
                     bw.Write(node.ParentID);
@@ -268,7 +273,7 @@ namespace Phoenix.AssetTool.Core.Model
                     bw.Write(an.Duration);
                     bw.Write(an.TicksPerSecond);
 
-                    for(var b = 0; b < boneCount; b++)
+                    for (var b = 0; b < boneCount; b++)
                     {
                         var boneKeyFrames = an.Keyframes[b];
                         var keyFramesLen = boneKeyFrames.Length;
@@ -294,13 +299,13 @@ namespace Phoenix.AssetTool.Core.Model
             var nTransform = node->MTransformation;
             Matrix4x4 currentTransform = parentTransform * nTransform;
             var absoluteTransform = Matrix4x4.Transpose(currentTransform);
-            
+
             for (var i = 0; i < node->MNumMeshes; i++)
             {
                 var assimpMesh = modelProcessData.Scene->MMeshes[node->MMeshes[i]];
 
                 var mesh = ProcessMesh(assimpMesh, absoluteTransform, modelProcessData);
-                
+
                 meshes.Add(mesh);
 
             }
@@ -317,7 +322,7 @@ namespace Phoenix.AssetTool.Core.Model
                 ProcessNode(node->MChildren[i], currentTransform, modelProcessData);
             }
         }
-        
+
         private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 absoluteTransform, ModelProcessData modelProcessData)
         {
             // data to fill
@@ -350,7 +355,7 @@ namespace Phoenix.AssetTool.Core.Model
                 // bitangent
                 if (mesh->MBitangents != null)
                     vertex.Bitangent = mesh->MBitangents[i];
-    
+
                 // texture coordinates
                 if (mesh->MTextureCoords[0] != null) // does the mesh contain texture coordinates?
                 {
@@ -372,7 +377,7 @@ namespace Phoenix.AssetTool.Core.Model
                     indices.Add(face.MIndices[j]);
             }
 
-            if(modelProcessData.LoadOptions.IsAnimated)
+            if (modelProcessData.LoadOptions.IsAnimated)
                 ExtractBoneWeights(vertices, mesh, modelProcessData);
 
             //if (_meshAttributes.HasFlag(MeshAttributes.boneIds) && _meshAttributes.HasFlag(MeshAttributes.boneWeights))
@@ -435,41 +440,18 @@ namespace Phoenix.AssetTool.Core.Model
                 int vertexId = kvp.Key;
                 var influences = kvp.Value;
 
-                List<(int BoneId, float Weight)> topInfluences;
-
-                if (influences.Count > MAX_BONE_INFLUENCE)
-                {
-                    influences.Sort((a, b) => b.Weight.CompareTo(a.Weight));
-                    topInfluences = influences.Take(MAX_BONE_INFLUENCE).ToList();
-
-                    float total = topInfluences.Sum(x => x.Weight);
-                    if (total > 0)
-                    {
-                        for (int i = 0; i < topInfluences.Count; i++)
-                            topInfluences[i] = (topInfluences[i].BoneId, topInfluences[i].Weight / total);
-                    }
-
-                }
-                else
-                {
-                    topInfluences = influences;
-                    for (int i = topInfluences.Count; i < MAX_BONE_INFLUENCE; i++)
-                    {
-                        topInfluences.Add((-1, 0.0f));
-                    }
-                }
+                for (int i = influences.Count; i < MAX_BONE_INFLUENCE; i++)
+                    influences.Add((-1, 0.0f));
 
                 var vertex = vertices[vertexId];
                 vertex.BoneIds =
-                    new Vector4(topInfluences[0].BoneId, topInfluences[1].BoneId, topInfluences[2].BoneId, topInfluences[3].BoneId);
+                    new Vector4(influences[0].BoneId, influences[1].BoneId, influences[2].BoneId, influences[3].BoneId);
                 vertex.Weights =
-                    new Vector4(topInfluences[0].Weight, topInfluences[1].Weight, topInfluences[2].Weight, topInfluences[3].Weight);
+                    new Vector4(influences[0].Weight, influences[1].Weight, influences[2].Weight, influences[3].Weight);
                 vertices[vertexId] = vertex;
             }
+
+
         }
-
-
-
     }
-
 }

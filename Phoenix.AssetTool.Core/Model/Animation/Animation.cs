@@ -27,6 +27,111 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             BoneCount = Keyframes.GetLength(0);
                         
         }
+
+        public void Precompute(IReadOnlyList<AnimatorNode> nodes, Matrix4x4 inverseGlobalTransform)
+        {
+            var boneCount = Keyframes.Length;
+
+            var allTimestamps = new SortedSet<float>();
+            for (int b = 0; b < boneCount; b++)
+            {
+                foreach (var kf in Keyframes[b])
+                    allTimestamps.Add(kf.TimeStamp);
+            }
+
+            
+            var newKeyframes = new List<Keyframe>[boneCount];
+            for (int b = 0; b < boneCount; b++)
+                newKeyframes[b] = new List<Keyframe>();
+
+            foreach (var timestamp in allTimestamps)
+            {
+                List<Keyframe> kfs = new();
+                for (int b = 0; b < boneCount; b++)
+                {
+                    var localSRT = InterpolateLocalSRT(Keyframes[b], timestamp);
+                    kfs.Add(new Keyframe(timestamp, localSRT.Scale, localSRT.Rotation, localSRT.Translation));
+                }
+
+                ProcessFrame(nodes, inverseGlobalTransform, kfs);
+
+                for (int b = 0; b < boneCount; b++)
+                {
+                    var fb = kfs[b];
+                    newKeyframes[b].Add(fb);
+
+                }
+            }
+
+            var result = new Keyframe[boneCount][];
+            for (int b = 0; b < boneCount; b++)
+                result[b] = newKeyframes[b].ToArray();
+            Keyframes = result;
+        }
+
+        void ProcessFrame(IReadOnlyList<AnimatorNode> nodes, Matrix4x4 inverseGlobalTransform, List<Keyframe> keyFrame)
+        {
+            var nodeCount = nodes.Count;
+            for (var i = 0; i < nodeCount; i++)
+            {
+                var node = nodes[i];
+
+                var pid = node.ParentID;
+                var parentTransform = pid != -1 ? nodes[pid].Transform : Matrix4x4.Identity;
+
+                Matrix4x4 localTransform;
+                if (node.IsBone)
+                {
+                    var animTransform = keyFrame[node.ModelBoneID].SRT.AsMatrix();
+                    animTransform = Matrix4x4.Transpose(animTransform);
+                    localTransform = animTransform;
+                }
+                else
+                    localTransform = node.BindTransform;
+
+                node.Transform = parentTransform * localTransform;
+
+                if (node.IsBone)
+                {
+                    var final = inverseGlobalTransform * node.Transform * node.Offset;
+                    final = Matrix4x4.Transpose(final);
+                    if (Matrix4x4.Decompose(final, out var scale, out var rotation, out var translation))
+                        keyFrame[node.ModelBoneID].SRT = new Transform(scale, rotation, translation);
+                }
+            }
+        }
+
+        
+        private static Transform InterpolateLocalSRT(Keyframe[] keyframes, float time)
+        {
+            if (keyframes.Length == 0)
+                return new Transform(Vector3.One, Quaternion.Identity, Vector3.Zero);
+
+            if (keyframes.Length == 1)
+                return keyframes[0].SRT;
+
+            int i0 = keyframes.Length - 2;
+            for (int i = 0; i < keyframes.Length - 1; i++)
+            {
+                if (time < keyframes[i + 1].TimeStamp)
+                {
+                    i0 = i;
+                    break;
+                }
+            }
+
+            int i1 = Math.Min(i0 + 1, keyframes.Length - 1);
+
+            var k0 = keyframes[i0];
+            var k1 = keyframes[i1];
+
+            var diff = k1.TimeStamp - k0.TimeStamp;
+            if (diff < 0.0001f)
+                return k0.SRT;
+
+            float factor = (time - k0.TimeStamp) / diff;
+            return k0.SRT.Interpolate(k1.SRT, factor);
+        }
         bool GetBoneInfo(string nodeName, Dictionary<string, BoneInfo> boneInfoMap, out BoneInfo info)
         {
             if (boneInfoMap.TryGetValue(nodeName, out var exactBoneInfo))
