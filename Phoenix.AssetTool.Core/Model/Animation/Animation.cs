@@ -134,17 +134,11 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         }
         bool GetBoneInfo(string nodeName, Dictionary<string, BoneInfo> boneInfoMap, out BoneInfo info)
         {
-            if (boneInfoMap.TryGetValue(nodeName, out var exactBoneInfo))
-            {
-                info = exactBoneInfo;
-                return true;
-            }
-
-            var bi = boneInfoMap.Select(e => (nodeName.Contains(e.Key)));
-
+            var trimmedNodeName = AnimationLoader.TrimBoneName(nodeName);
             foreach(var e in boneInfoMap)
             {
-                if(nodeName.Contains(e.Key))
+                var trimmedKey = AnimationLoader.TrimBoneName(e.Key);
+                if(string.Equals(trimmedNodeName, trimmedKey, StringComparison.OrdinalIgnoreCase))
                 {
                     info = e.Value;
                     return true;

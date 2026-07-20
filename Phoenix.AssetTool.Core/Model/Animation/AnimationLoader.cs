@@ -241,9 +241,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         //}
         public static string TrimBoneName(string name)
         {
-            if (name.StartsWith("mixamo"))
-                return name.Substring(11);
-            return name;
+            return name.StartsWith("mixamorig:") ? name.Substring(10) : name;
         }
     }
 }
