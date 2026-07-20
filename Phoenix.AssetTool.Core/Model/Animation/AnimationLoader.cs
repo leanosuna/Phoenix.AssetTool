@@ -1,4 +1,6 @@
-﻿using Silk.NET.Assimp;
+﻿#define DEBUG_ASSIMP
+#define USE_COMPUTED_OFFSET
+using Silk.NET.Assimp;
 using Phoenix.Rendering.Geometry;
 using System.Numerics;
 namespace Phoenix.AssetTool.Core.Model.Animation
@@ -30,25 +32,54 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             }
             if (!loadData.ModelHierarchySet)
             {
+#if DEBUG_ASSIMP
+                Log.Debug("===== DEBUG_ASSIMP: AnimationLoader.LoadAnimation =====");
+                Log.Debug($"Animation file: {path}");
+
+                ref readonly var rawRootTx = ref rootNode->MTransformation;
+                Log.Debug($"Root MTransformation (raw Matrix4x4 fields):");
+                Log.Debug($"  M11={rawRootTx.M11:F6} M12={rawRootTx.M12:F6} M13={rawRootTx.M13:F6} M14={rawRootTx.M14:F6}");
+                Log.Debug($"  M21={rawRootTx.M21:F6} M22={rawRootTx.M22:F6} M23={rawRootTx.M23:F6} M24={rawRootTx.M24:F6}");
+                Log.Debug($"  M31={rawRootTx.M31:F6} M32={rawRootTx.M32:F6} M33={rawRootTx.M33:F6} M34={rawRootTx.M34:F6}");
+                Log.Debug($"  M41={rawRootTx.M41:F6} M42={rawRootTx.M42:F6} M43={rawRootTx.M43:F6} M44={rawRootTx.M44:F6}");
+
+                var rootTxBeforeTranspose = (Matrix4x4)rawRootTx;
+                Log.Debug($"Root MTransformation (System.Numerics, BEFORE Transpose):\n{rootTxBeforeTranspose.ToStrF2()}");
+#endif
+
                 var globalTransform = Matrix4x4.Transpose(rootNode->MTransformation);
                 loadData.InverseGlobalTransform = Matrix4x4.Invert(globalTransform, out var inverse) ? inverse : Matrix4x4.Identity;
 
-                //Log.Debug("-------------");
-                //Log.Debug("HIERACHY");
-                //_nCount = 0;
-                //PrintHierarchy(rootNode, 0);
+#if DEBUG_ASSIMP
+                Log.Debug($"Root MTransformation (System.Numerics, AFTER Transpose):\n{globalTransform.ToStrF2()}");
+                Log.Debug($"InverseGlobalTransform:\n{loadData.InverseGlobalTransform.ToStrF2()}");
+#endif
 
-                //ReadHierarchy(rootNode, -1, 0);
+#if DEBUG_ASSIMP
+                Log.Debug("----- RAW HIERARCHY -----");
+                PrintHierarchy(rootNode, 0);
+#endif
+
                 var rootFolded = ReadHierarchy(rootNode, loadData);
-                //Log.Debug("-------------");
-                //Log.Debug("FOLDED HIERACHY");
-                //_nCount = 0;
-                //PrintFoldedHierachy(_rootBoneHierarchyNode, -1);
-                //Log.Debug("-------------");
-                //Log.Debug("FLATTENED");
+
+#if DEBUG_ASSIMP
+                Log.Debug("----- FOLDED HIERARCHY -----");
+                PrintFoldedHierarchy(rootFolded, 0);
+#endif
+
                 FlattenHierarchy(rootFolded, -1, loadData);
-                //loadData.AnimatorNodes = _animatorNodes.ToArray();
-                //PrintFlattened(loadData.AnimatorNodes);
+
+#if DEBUG_ASSIMP
+                Log.Debug("----- FLATTENED HIERARCHY -----");
+                PrintFlattened(loadData.AnimatorNodes);
+#endif
+
+#if USE_COMPUTED_OFFSET
+#if DEBUG_ASSIMP
+                Log.Debug("----- COMPUTED OFFSETS (overwriting Assimp offsets) -----");
+#endif
+                ComputeOffsets(loadData);
+#endif
 
                 loadData.ModelHierarchySet = true;
                 
@@ -69,6 +100,11 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     an.Name = TrimBoneName(node.Name);
                     an.Level = level;
                     loadData.AnimatorNodes.Add(an);
+#if DEBUG_ASSIMP
+                    Log.Debug($"Flatten: [{currentIndex}] BONE \"{an.Name}\" parent={parentID} modelBoneID={info.ID} level={level}");
+                    Log.Debug($"  BindTransform:\n{an.BindTransform.ToStrF2()}");
+                    Log.Debug($"  Offset:\n{an.Offset.ToStrF2()}");
+#endif
                 }
             }
             else
@@ -77,6 +113,10 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 an.Name = TrimBoneName(node.Name);
                 an.Level = level;
                 loadData.AnimatorNodes.Add(an);
+#if DEBUG_ASSIMP
+                Log.Debug($"Flatten: [{currentIndex}] NODE \"{an.Name}\" parent={parentID} modelBoneID=-1 level={level}");
+                Log.Debug($"  BindTransform:\n{an.BindTransform.ToStrF2()}");
+#endif
             }
 
             foreach (var child in node.Children)
@@ -85,20 +125,69 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             }
         }
 
+        private static void ComputeOffsets(AnimationLoadData loadData)
+        {
+            var nodes = loadData.AnimatorNodes;
+            var boneInfoMap = loadData.BoneInfoMap;
+
+            var meshWorldById = new Dictionary<int, Matrix4x4>();
+            foreach (var kvp in boneInfoMap)
+                meshWorldById[kvp.Value.ID] = kvp.Value.MeshWorld;
+
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var node = nodes[i];
+                if (!node.IsBone)
+                    continue;
+
+                if (!meshWorldById.TryGetValue(node.ModelBoneID, out var meshWorld))
+                    meshWorld = Matrix4x4.Identity;
+
+                if (Matrix4x4.Invert(meshWorld, out var invMeshWorld))
+                {
+                    node.Offset = node.Offset * invMeshWorld;
+#if DEBUG_ASSIMP
+                    Log.Debug($"ComputeOffset BONE \"{node.Name}\" id={node.ModelBoneID}");
+                    Log.Debug($"  meshWorld:\n{meshWorld.ToStrF2()}");
+                    Log.Debug($"  invMeshWorld:\n{invMeshWorld.ToStrF2()}");
+                    Log.Debug($"  offset (corrected):\n{node.Offset.ToStrF2()}");
+#endif
+                }
+            }
+        }
+
         private unsafe static ModelBoneHierarchyNode ReadHierarchy(Node* node, AnimationLoadData loadData)
         {
-            // Try to detect if this node is the head of a helper-chain that ends in a bone node.
-            // (Mixamo pre-scale_bone, pre-rotation_bone, pre-translation_bone, bone, style)
-            // If it is, fold the transforms along the single-child chain up to the bone and
-            // create a single AnimationNode entry for that bone (with BaseTransform = folded transform).
+            string name = node->MName;
+
+#if DEBUG_ASSIMP
+            ref readonly var rawTx = ref node->MTransformation;
+            var sysTx = (Matrix4x4)rawTx;
+            string indent = new string(' ', 4);
+            Log.Debug($"ReadHierarchy: node=\"{name}\" children={node->MNumChildren}");
+            Log.Debug($"  MTransformation (raw fields): M11={rawTx.M11:F6} M12={rawTx.M12:F6} M13={rawTx.M13:F6} M14={rawTx.M14:F6}");
+            Log.Debug($"    M21={rawTx.M21:F6} M22={rawTx.M22:F6} M23={rawTx.M23:F6} M24={rawTx.M24:F6}");
+            Log.Debug($"    M31={rawTx.M31:F6} M32={rawTx.M32:F6} M33={rawTx.M33:F6} M34={rawTx.M34:F6}");
+            Log.Debug($"    M41={rawTx.M41:F6} M42={rawTx.M42:F6} M43={rawTx.M43:F6} M44={rawTx.M44:F6}");
+            Log.Debug($"  MTransformation (compact):\n{indent}{sysTx.ToStrF2()}");
+#endif
 
             var boneInfoMap = loadData.BoneInfoMap;
-            // Attempt to collect a chain starting at 'node' that leads to a bone node
             if (TryCollectChainThatEndsInBone(node, boneInfoMap, out var foldedTransform, out Node* boneNode, out string boneName))
             {
-                // We found a chain that ends in a bone node (boneNode). Add a single AnimationNode
-                // using the folded transform and skip the intermediate helper nodes in the
-                // flattened AnimationNodes list (but still recurse children of the bone node).
+#if DEBUG_ASSIMP
+                Log.Debug($"  ** CHAIN FOLDED ** → bone=\"{boneName}\", foldedTransform:\n{indent}{foldedTransform.ToStrF2()}");
+                if (boneInfoMap.TryGetValue(boneName, out var foldedInfo))
+                {
+                    var offsetSys = (Matrix4x4)foldedInfo.Offset;
+                    Log.Debug($"  Offset (raw fields):");
+                    Log.Debug($"    M11={offsetSys.M11:F6} M12={offsetSys.M12:F6} M13={offsetSys.M13:F6} M14={offsetSys.M14:F6}");
+                    Log.Debug($"    M21={offsetSys.M21:F6} M22={offsetSys.M22:F6} M23={offsetSys.M23:F6} M24={offsetSys.M24:F6}");
+                    Log.Debug($"    M31={offsetSys.M31:F6} M32={offsetSys.M32:F6} M33={offsetSys.M33:F6} M34={offsetSys.M34:F6}");
+                    Log.Debug($"    M41={offsetSys.M41:F6} M42={offsetSys.M42:F6} M43={offsetSys.M43:F6} M44={offsetSys.M44:F6}");
+                    Log.Debug($"  Offset (compact):\n{indent}{offsetSys.ToStrF2()}");
+                }
+#endif
 
                 if (boneInfoMap.TryGetValue(boneName, out var info))
                 {
@@ -113,9 +202,6 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 }
             }
 
-            // Normal path: this node is not the head of helper chain ending in a bone.
-            string name = node->MName;
-
             var nodeTransform = node->MTransformation;
             var nodeChildren = new List<ModelBoneHierarchyNode>();
 
@@ -128,19 +214,29 @@ namespace Phoenix.AssetTool.Core.Model.Animation
 
             if (boneInfoMap.TryGetValue(name, out var directInfo))
             {
+#if DEBUG_ASSIMP
+                var offsetSysDir = (Matrix4x4)directInfo.Offset;
+                Log.Debug($"  → direct bone node \"{name}\", Offset (System.Numerics):\n{new string(' ', 4)}{offsetSysDir.ToStrF2()}");
+#endif
                 return new ModelBoneHierarchyNode(name, nodeTransform, nodeChildren, directInfo.Offset);
             }
             else
             {
                 if (nodeChildren.Count == 0) // skip non-bone with no children
+                {
+#if DEBUG_ASSIMP
+                    Log.Debug($"  → skipped: non-bone leaf node \"{name}\"");
+#endif
                     return null!;
+                }
 
+#if DEBUG_ASSIMP
+                Log.Debug($"  → intermediate node (non-bone, has children) \"{name}\"");
+#endif
                 return new ModelBoneHierarchyNode(name, nodeTransform, nodeChildren);
             }
         }
 
-        // Helper: tries to walk a single-child chain starting at 'start' and sees if it ends in a bone node.
-        // It accumulates each node's transform into 'accumulated' (in System.Numerics row-major space using Transpose).
         private unsafe static bool TryCollectChainThatEndsInBone(Node* start, Dictionary<string, BoneInfo> boneInfoMap, out Matrix4x4 accumulated, out Node* boneNodeOut, out string boneNameOut)
         {
             accumulated = Matrix4x4.Identity;
@@ -148,11 +244,35 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             boneNodeOut = null;
             boneNameOut = null!;
 
+#if DEBUG_ASSIMP
+            Log.Debug($"  TryCollectChain START from=\"{start->MName}\"");
+            int chainStep = 0;
+#endif
+
             // Walk while there's exactly one child (linear chain) and stop if we find a bone node
             while (cur != null)
             {
                 var t = cur->MTransformation;
+
+#if DEBUG_ASSIMP
+                ref readonly var rawT = ref cur->MTransformation;
+                var sysT = (Matrix4x4)rawT;
+                var accBefore = accumulated;
+                Log.Debug($"    ChainStep {chainStep}: node=\"{cur->MName}\", children={cur->MNumChildren}");
+                Log.Debug($"      MTransformation (raw): M11={rawT.M11:F6} M12={rawT.M12:F6} M13={rawT.M13:F6} M14={rawT.M14:F6}");
+                Log.Debug($"                           M21={rawT.M21:F6} M22={rawT.M22:F6} M23={rawT.M23:F6} M24={rawT.M24:F6}");
+                Log.Debug($"                           M31={rawT.M31:F6} M32={rawT.M32:F6} M33={rawT.M33:F6} M34={rawT.M34:F6}");
+                Log.Debug($"                           M41={rawT.M41:F6} M42={rawT.M42:F6} M43={rawT.M43:F6} M44={rawT.M44:F6}");
+                Log.Debug($"      MTransformation (compact):\n{new string(' ', 8)}{sysT.ToStrF2()}");
+                Log.Debug($"      Accumulated BEFORE step:\n{new string(' ', 8)}{accBefore.ToStrF2()}");
+#endif
+
                 accumulated = accumulated * t;
+
+#if DEBUG_ASSIMP
+                Log.Debug($"      Accumulated AFTER step:\n{new string(' ', 8)}{accumulated.ToStrF2()}");
+#endif
+
                 string curName = cur->MName;
 
                 // If this node maps directly to a bone, we finished the chain
@@ -160,6 +280,14 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 {
                     boneNodeOut = cur;
                     boneNameOut = curName;
+#if DEBUG_ASSIMP
+                    Log.Debug($"    → CHAIN HIT bone=\"{curName}\" at step {chainStep}");
+                    if (boneInfoMap.TryGetValue(curName, out var hitInfo))
+                    {
+                        var hitOff = (Matrix4x4)hitInfo.Offset;
+                        Log.Debug($"      BoneInfo Offset (sys):\n{new string(' ', 8)}{hitOff.ToStrF2()}");
+                    }
+#endif
                     return true;
                 }
 
@@ -167,28 +295,28 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 if (cur->MNumChildren != 1)
                 {
                     boneNodeOut = cur; // caller may still recurse from here
+#if DEBUG_ASSIMP
+                    Log.Debug($"    → CHAIN BROKEN at step {chainStep}: node has {cur->MNumChildren} children (need exactly 1)");
+#endif
                     return false;
                 }
 
                 // Step into the single child
                 cur = cur->MChildren[0];
+#if DEBUG_ASSIMP
+                chainStep++;
+#endif
             }
             return false;
         }
 
 
-        int _nCount = 0;
-        private unsafe void PrintHierarchy(Node* node, int level)
+        private static unsafe void PrintHierarchy(Node* node, int level)
         {
-            var str = $"{_nCount} ";
-            for (var i = 0; i < level; i++)
-            {
-                str += "-";
-            }
-            //str += ((string)node->MName).TrimBoneName();
-            //Log.Debug(str);
-            _nCount++;
-
+            string? n = node->MName;
+            var name = string.IsNullOrEmpty(n) ? "(null)" : n;
+            var indent = new string('-', level);
+            Log.Debug($"{indent}{name} (children={node->MNumChildren})");
             for (var i = 0; i < node->MNumChildren; i++)
             {
                 PrintHierarchy(node->MChildren[i], level + 1);
@@ -205,40 +333,42 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         }
         private static void PrintFlattened(List<AnimatorNode> animatorNodes)
         {
-            Log.Debug("[Animation Nodes]");
+            Log.Debug($"[AnimatorNodes] count={animatorNodes.Count}");
             for (var i = 0; i < animatorNodes.Count; i++)
             {
                 var node = animatorNodes[i];
-                var str = node.IsBone ? "B" : "N";
-                var spc = "";
-                for (var j = 0; j < TabCount(animatorNodes, node); j++)
+                var spc = new string('-', TabCount(animatorNodes, node));
+                var type = node.IsBone ? "B" : "N";
+                Log.Debug($"{type}{i}{spc} PID={node.ParentID} MID={node.ModelBoneID} \"{node.Name}\"");
+                if (node.IsBone)
                 {
-                    spc += "-";
+                    Log.Debug($"  BindTx:\n{node.BindTransform.ToStrF2()}");
+                    Log.Debug($"  Offset:\n{node.Offset.ToStrF2()}");
                 }
-                str += $"{i}{spc} PID {node.ParentID}, MID {node.ModelBoneID}, {node.Name}";
-                Log.Debug(str);
+                else
+                {
+                    Log.Debug($"  BindTx:\n{node.BindTransform.ToStrF2()}");
+                }
             }
             Log.Debug("---");
         }
-        //private unsafe void PrintFoldedHierachy(ModelBoneHierarchyNode node, int parentID)
-        //{
 
-        //    var str = $"{_nCount}";
-
-        //    str += node.IsBone ? "B" : " ";
-
-        //    for (var i = 0; i < parentID; i++)
-        //    {
-        //        str += "-";
-        //    }
-        //    //str += $"PID {parentID} " + (node.Name).TrimBoneName();
-        //    //Log.Debug(str);
-        //    for (var i = 0; i < node.Children.Count; i++)
-        //    {
-        //        _nCount++;
-        //        PrintFoldedHierachy(node.Children[i], parentID + 1);
-        //    }
-        //}
+        private static void PrintFoldedHierarchy(ModelBoneHierarchyNode node, int level)
+        {
+            var indent = new string('-', level);
+            var type = node.IsBone ? "B" : "N";
+            var name = TrimBoneName(node.Name);
+            Log.Debug($"{type}{indent} \"{name}\" children={node.Children.Count}");
+            if (node.IsBone)
+            {
+                Log.Debug($"  Offset:\n{node.Offset.ToStrF2()}");
+            }
+            Log.Debug($"  Transform:\n{node.Transform.ToStrF2()}");
+            foreach (var child in node.Children)
+            {
+                PrintFoldedHierarchy(child, level + 1);
+            }
+        }
         public static string TrimBoneName(string name)
         {
             return name.StartsWith("mixamorig:") ? name.Substring(10) : name;

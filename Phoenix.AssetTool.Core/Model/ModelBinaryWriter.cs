@@ -1,4 +1,5 @@
-﻿using Phoenix.AssetImport.Texture;
+﻿//#define DEBUG_ASSIMP
+using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Model.Animation;
 using Phoenix.AssetTool.Core.Texture;
@@ -63,6 +64,24 @@ namespace Phoenix.AssetTool.Core.Model
 
             if (options.IsAnimated)
             {
+#if DEBUG_ASSIMP
+                Log.Debug($"===== DEBUG_ASSIMP: ModelBinaryWriter.ExtractBoneWeights =====");
+                Log.Debug($"BoneInfoMap after extraction ({modelProcessData.BoneInfoMap.Count} bones):");
+                foreach (var b in modelProcessData.BoneInfoMap)
+                {
+                    var offSys = (Matrix4x4)b.Value.Offset;
+                    ref readonly var rawOff = ref b.Value.Offset;
+                    Log.Debug($"  ID={b.Value.ID} \"{b.Key}\"");
+                    Log.Debug($"    Offset (raw fields):");
+                    Log.Debug($"      M11={rawOff.M11:F6} M12={rawOff.M12:F6} M13={rawOff.M13:F6} M14={rawOff.M14:F6}");
+                    Log.Debug($"      M21={rawOff.M21:F6} M22={rawOff.M22:F6} M23={rawOff.M23:F6} M24={rawOff.M24:F6}");
+                    Log.Debug($"      M31={rawOff.M31:F6} M32={rawOff.M32:F6} M33={rawOff.M33:F6} M34={rawOff.M34:F6}");
+                    Log.Debug($"      M41={rawOff.M41:F6} M42={rawOff.M42:F6} M43={rawOff.M43:F6} M44={rawOff.M44:F6}");
+                    Log.Debug($"    Offset (compact):\n{offSys.ToStrF2()}");
+                    Log.Debug($"    MeshWorld:\n{b.Value.MeshWorld.ToStrF2()}");
+                }
+#endif
+
                 var (animations, data) = AnimationLoader.ProcessAnimations(options.AnimationFiles, modelProcessData.BoneInfoMap);
                 modelProcessData.Animations = animations;
                 modelProcessData.AnimationLoadData = data;
@@ -296,9 +315,27 @@ namespace Phoenix.AssetTool.Core.Model
         {
             var meshes = new List<Mesh>();
 
+#if DEBUG_ASSIMP
+            var nodeName = node->MName ?? "(null)";
+            ref readonly var rawTx = ref node->MTransformation;
+            var sysTx = (Matrix4x4)rawTx;
+            Log.Debug($"ProcessNode: \"{nodeName}\" meshes={node->MNumMeshes} children={node->MNumChildren}");
+            Log.Debug($"  MTransformation (raw fields): M11={rawTx.M11:F6} M12={rawTx.M12:F6} M13={rawTx.M13:F6} M14={rawTx.M14:F6}");
+            Log.Debug($"    M21={rawTx.M21:F6} M22={rawTx.M22:F6} M23={rawTx.M23:F6} M24={rawTx.M24:F6}");
+            Log.Debug($"    M31={rawTx.M31:F6} M32={rawTx.M32:F6} M33={rawTx.M33:F6} M34={rawTx.M34:F6}");
+            Log.Debug($"    M41={rawTx.M41:F6} M42={rawTx.M42:F6} M43={rawTx.M43:F6} M44={rawTx.M44:F6}");
+            Log.Debug($"  MTransformation (compact):\n{sysTx.ToStrF2()}");
+            Log.Debug($"  parentTransform:\n{parentTransform.ToStrF2()}");
+#endif
+
             var nTransform = node->MTransformation;
             Matrix4x4 currentTransform = parentTransform * nTransform;
             var absoluteTransform = Matrix4x4.Transpose(currentTransform);
+
+#if DEBUG_ASSIMP
+            Log.Debug($"  currentTransform (parent * nTransform):\n{currentTransform.ToStrF2()}");
+            Log.Debug($"  absoluteTransform (Transpose):\n{absoluteTransform.ToStrF2()}");
+#endif
 
             for (var i = 0; i < node->MNumMeshes; i++)
             {
@@ -378,7 +415,7 @@ namespace Phoenix.AssetTool.Core.Model
             }
 
             if (modelProcessData.LoadOptions.IsAnimated)
-                ExtractBoneWeights(vertices, mesh, modelProcessData);
+                ExtractBoneWeights(vertices, mesh, absoluteTransform, modelProcessData);
 
             //if (_meshAttributes.HasFlag(MeshAttributes.boneIds) && _meshAttributes.HasFlag(MeshAttributes.boneWeights))
             //{
@@ -394,7 +431,7 @@ namespace Phoenix.AssetTool.Core.Model
             return new Mesh(vertices, indices, absoluteTransform, name, aabb, materialIndex);
         }
 
-        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, ModelProcessData modelProcessData)
+        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, Matrix4x4 meshWorld, ModelProcessData modelProcessData)
         {
             // Temporary dictionary to collect all influences per vertex
             var vertexInfluences = new Dictionary<int, List<(int BoneId, float Weight)>>();
@@ -417,9 +454,19 @@ namespace Phoenix.AssetTool.Core.Model
                 else
                 {
                     trueBoneId = boneInfoMap.Count;
-                    boneInfoMap.Add(boneName, new BoneInfo(trueBoneId, offset));
+                    boneInfoMap.Add(boneName, new BoneInfo(trueBoneId, offset, meshWorld));
 
                 }
+
+#if DEBUG_ASSIMP
+                Log.Debug($"  Bone[{boneID}]=\"{(string)boneName}\" id={trueBoneId} numWeights={numWeights}");
+                ref readonly var rawOff = ref offset;
+                Log.Debug($"    Offset (raw fields): M11={rawOff.M11:F6} M12={rawOff.M12:F6} M13={rawOff.M13:F6} M14={rawOff.M14:F6}");
+                Log.Debug($"                        M21={rawOff.M21:F6} M22={rawOff.M22:F6} M23={rawOff.M23:F6} M24={rawOff.M24:F6}");
+                Log.Debug($"                        M31={rawOff.M31:F6} M32={rawOff.M32:F6} M33={rawOff.M33:F6} M34={rawOff.M34:F6}");
+                Log.Debug($"                        M41={rawOff.M41:F6} M42={rawOff.M42:F6} M43={rawOff.M43:F6} M44={rawOff.M44:F6}");
+                Log.Debug($"    Offset (compact):\n{offSys.ToStrF2()}");
+#endif
 
                 for (int wi = 0; wi < numWeights; wi++)
                 {

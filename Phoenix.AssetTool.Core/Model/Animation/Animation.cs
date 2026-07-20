@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿//#define DEBUG_ASSIMP
+using Silk.NET.Assimp;
 using Phoenix.Rendering.Geometry;
 using System.Numerics;
 
@@ -39,11 +40,28 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     allTimestamps.Add(kf.TimeStamp);
             }
 
+#if DEBUG_ASSIMP
+            Log.Debug($"Precompute: boneCount={boneCount} uniqueTimestamps={allTimestamps.Count}");
+            int tsIdx = 0;
+            foreach (var ts in allTimestamps)
+            {
+                if (tsIdx < 5 || tsIdx >= allTimestamps.Count - 5)
+                    Log.Debug($"  ts[{tsIdx}]={ts:F4}");
+                tsIdx++;
+            }
+            if (allTimestamps.Count > 10)
+                Log.Debug($"  ... ({allTimestamps.Count - 10} more) ...");
+            Log.Debug($"----");
+#endif
             
             var newKeyframes = new List<Keyframe>[boneCount];
             for (int b = 0; b < boneCount; b++)
                 newKeyframes[b] = new List<Keyframe>();
 
+#if DEBUG_ASSIMP
+            int frameIdx = 0;
+            int totalFrames = allTimestamps.Count;
+#endif
             foreach (var timestamp in allTimestamps)
             {
                 List<Keyframe> kfs = new();
@@ -53,7 +71,30 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     kfs.Add(new Keyframe(timestamp, localSRT.Scale, localSRT.Rotation, localSRT.Translation));
                 }
 
+#if DEBUG_ASSIMP
+                bool firstFrame = (frameIdx == 0);
+                bool lastFrame = (frameIdx == totalFrames - 1);
+                if (firstFrame || lastFrame)
+                {
+                    Log.Debug($"----- Frame {frameIdx}/{totalFrames} t={timestamp:F4} -----");
+                }
+#endif
+
                 ProcessFrame(nodes, inverseGlobalTransform, kfs);
+
+#if DEBUG_ASSIMP
+                if (firstFrame || lastFrame)
+                {
+                    Log.Debug($"  Processed SRTs for frame {frameIdx}:");
+                    for (int b = 0; b < Math.Min(boneCount, 5); b++)
+                    {
+                        Log.Debug($"  Bone[{b}] SRT: S={kfs[b].SRT.Scale.ToStr()} R={kfs[b].SRT.Rotation.ToStr()} T={kfs[b].SRT.Translation.ToStr()}");
+                    }
+                    if (boneCount > 5) Log.Debug($"  ... +{boneCount - 5} more bones");
+                    Log.Debug($"-----");
+                }
+                frameIdx++;
+#endif
 
                 for (int b = 0; b < boneCount; b++)
                 {
@@ -71,6 +112,10 @@ namespace Phoenix.AssetTool.Core.Model.Animation
 
         void ProcessFrame(IReadOnlyList<AnimatorNode> nodes, Matrix4x4 inverseGlobalTransform, List<Keyframe> keyFrame)
         {
+#if DEBUG_ASSIMP
+            Log.Debug($"ProcessFrame: nodeCount={nodes.Count} boneCount={BoneCount}");
+            Log.Debug($"  inverseGlobalTransform:\n{inverseGlobalTransform.ToStrF2()}");
+#endif
             var nodeCount = nodes.Count;
             for (var i = 0; i < nodeCount; i++)
             {
@@ -83,20 +128,51 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 if (node.IsBone)
                 {
                     var animTransform = keyFrame[node.ModelBoneID].SRT.AsMatrix();
+#if DEBUG_ASSIMP
+                    var animBeforeTranspose = animTransform;
+                    Log.Debug($"  Node[{i}] BONE \"{node.Name}\" MID={node.ModelBoneID} PID={pid}");
+                    Log.Debug($"    keyFrame SRT={{\n      S={keyFrame[node.ModelBoneID].SRT.Scale.ToStr()}\n      R={keyFrame[node.ModelBoneID].SRT.Rotation.ToStr()}\n      T={keyFrame[node.ModelBoneID].SRT.Translation.ToStr()}}}");
+                    Log.Debug($"    animTransform BEFORE Transpose:\n{animBeforeTranspose.ToStrF2()}");
+#endif
                     animTransform = Matrix4x4.Transpose(animTransform);
+#if DEBUG_ASSIMP
+                    Log.Debug($"    animTransform AFTER Transpose:\n{animTransform.ToStrF2()}");
+#endif
                     localTransform = animTransform;
                 }
                 else
+                {
                     localTransform = node.BindTransform;
+#if DEBUG_ASSIMP
+                    Log.Debug($"  Node[{i}] NODE \"{node.Name}\" PID={pid}");
+                    Log.Debug($"    localTransform = BindTransform:\n{localTransform.ToStrF2()}");
+#endif
+                }
 
+#if DEBUG_ASSIMP
+                Log.Debug($"    parentTransform:\n{parentTransform.ToStrF2()}");
+#endif
                 node.Transform = parentTransform * localTransform;
+#if DEBUG_ASSIMP
+                Log.Debug($"    node.Transform (parent * local):\n{node.Transform.ToStrF2()}");
+#endif
 
                 if (node.IsBone)
                 {
                     var final = inverseGlobalTransform * node.Transform * node.Offset;
+#if DEBUG_ASSIMP
+                    Log.Debug($"    node.Offset:\n{node.Offset.ToStrF2()}");
+                    Log.Debug($"    final BEFORE Transpose (invGlobal * nodeTx * offset):\n{final.ToStrF2()}");
+#endif
                     final = Matrix4x4.Transpose(final);
+#if DEBUG_ASSIMP
+                    Log.Debug($"    final AFTER Transpose:\n{final.ToStrF2()}");
+#endif
                     if (Matrix4x4.Decompose(final, out var scale, out var rotation, out var translation))
                         keyFrame[node.ModelBoneID].SRT = new Transform(scale, rotation, translation);
+#if DEBUG_ASSIMP
+                    Log.Debug($"    Decomposed SRT: S={scale.ToStr()} R={rotation.ToStr()} T={translation.ToStr()}");
+#endif
                 }
             }
         }
@@ -155,6 +231,17 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             for (int i = 0; i < boneCount; i++)
                 keyframes[i] = new List<Keyframe>();
 
+#if DEBUG_ASSIMP
+            Log.Debug($"===== DEBUG_ASSIMP: Animation.ReadKeyFrames =====");
+            Log.Debug($"Animation: \"{Name}\" channels={anim->MNumChannels} boneCount={boneCount}");
+            Log.Debug($"BoneInfoMap contents:");
+            foreach (var b in boneInfoMap)
+            {
+                var offSys = (Matrix4x4)b.Value.Offset;
+                Log.Debug($"  ID={b.Value.ID} \"{b.Key}\" Offset:\n{offSys.ToStrF2()}");
+            }
+#endif
+
             for (int c = 0; c < anim->MNumChannels; c++)
             {
                 var channel = anim->MChannels[c];
@@ -167,14 +254,52 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 //    continue;
 
                 if (!GetBoneInfo(nodeName, boneInfoMap, out var info))
+                {
+#if DEBUG_ASSIMP
+                    Log.Debug($"Channel[{c}]: \"{nodeName}\" → SKIPPED (not in BoneInfoMap)");
+#endif
                     continue;
+                }
 
+                // bug: all three vars use MNumPositionKeys instead of their respective fields
                 var posKeyCount = channel->MNumPositionKeys;
                 var rotKeyCount = channel->MNumPositionKeys;
                 var sclKeyCount = channel->MNumPositionKeys;
 
+#if DEBUG_ASSIMP
+                Log.Debug($"Channel[{c}]: \"{nodeName}\" → boneID={info.ID}");
+                Log.Debug($"  PreState={behaviourPre} PostState={behaviourPost}");
+                Log.Debug($"  posKeyCount={posKeyCount} (MNumPositionKeys={channel->MNumPositionKeys})");
+                Log.Debug($"  rotKeyCount={rotKeyCount} (MNumRotationKeys={channel->MNumRotationKeys}) << USES MNumPositionKeys (BUG)");
+                Log.Debug($"  sclKeyCount={sclKeyCount} (MNumScalingKeys={channel->MNumScalingKeys}) << USES MNumPositionKeys (BUG)");
+                Log.Debug($"  ACTUAL: pos={channel->MNumPositionKeys} rot={channel->MNumRotationKeys} scl={channel->MNumScalingKeys}");
+#endif
+
 
                 int maxKeys = (int)Math.Max(Math.Max(posKeyCount, rotKeyCount), sclKeyCount);
+
+#if DEBUG_ASSIMP
+                Log.Debug($"  maxKeys (computed)={maxKeys}");
+                if (channel->MNumPositionKeys > 0)
+                {
+                    var firstPos = channel->MPositionKeys[0];
+                    var lastPos = channel->MPositionKeys[channel->MNumPositionKeys - 1];
+                    Log.Debug($"  PosKeys: ft={firstPos.MTime:F2} last={lastPos.MTime:F2} firstVal={firstPos.MValue.ToStr()} lastVal={lastPos.MValue.ToStr()}");
+                }
+                if (channel->MNumRotationKeys > 0)
+                {
+                    var firstRot = channel->MRotationKeys[0];
+                    var lastRot = channel->MRotationKeys[channel->MNumRotationKeys - 1];
+                    Log.Debug($"  RotKeys: ft={firstRot.MTime:F2} last={lastRot.MTime:F2} firstVal={firstRot.MValue.ToStr()} lastVal={lastRot.MValue.ToStr()}");
+                }
+                if (channel->MNumScalingKeys > 0)
+                {
+                    var firstScl = channel->MScalingKeys[0];
+                    var lastScl = channel->MScalingKeys[channel->MNumScalingKeys - 1];
+                    Log.Debug($"  SclKeys: ft={firstScl.MTime:F2} last={lastScl.MTime:F2} firstVal={firstScl.MValue.ToStr()} lastVal={lastScl.MValue.ToStr()}");
+                }
+#endif
+
                 for (int k = 0; k < maxKeys; k++)
                 {
                     var t = (float)(
@@ -202,11 +327,23 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     
                     keyframes[info.ID].Add(new Keyframe((float)t, scl, rot, pos));
                 }
+
+#if DEBUG_ASSIMP
+                Log.Debug($"  Stored {keyframes[info.ID].Count} keyframes for bone[{info.ID}]");
+#endif
             }
 
             var result = new Keyframe[boneCount][];
             for (int i = 0; i < boneCount; i++)
+            {
                 result[i] = keyframes[i].ToArray();
+#if DEBUG_ASSIMP
+                if (result[i].Length > 0)
+                {
+                    Log.Debug($"Bone[{i}]: {result[i].Length} keyframes, f0 t={result[i][0].TimeStamp:F2} l t={result[i][^1].TimeStamp:F2}");
+                }
+#endif
+            }
             return result;
         }
         

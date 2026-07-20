@@ -9,7 +9,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         public Matrix4x4 BindTransform { get; private set; }
         public Matrix4x4 Transform { get; set; } = Matrix4x4.Identity;
 
-        public Matrix4x4 Offset { get; private set; }
+        public Matrix4x4 Offset { get; internal set; }
         public int ParentID { get; private set; }
         public int ModelBoneID { get; private set; }
         public bool IsBone { get; private set; }
