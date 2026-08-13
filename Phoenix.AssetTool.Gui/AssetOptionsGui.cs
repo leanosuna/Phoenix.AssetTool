@@ -79,9 +79,7 @@ namespace Phoenix.AssetTool.Gui
                 ImGui.SameLine();
                 if (ImGui.Button("Save options"))
                 {
-                    
-                    
-                    
+                    SaveOptions(asset);
                 }
 
 
@@ -306,11 +304,16 @@ namespace Phoenix.AssetTool.Gui
             if (ImGui.ListBox("##5", ref current5, filterList, 2))
                 options.Mag = options.Mag.At(current5);
 
+            var aniso = options.Anisotropic;
+            ImGui.Text("Anisotropy");
+            if (ImGui.DragFloat("##6", ref aniso, 0.1f, 0f, 16f))
+                options.Anisotropic = aniso;
+
         }
         public static void DrawShaderOptions(AssetEntry asset, string path)
         {
             var pathAbs = Path.Combine(
-                Manifest.BaseDirectory, asset.RelativePath);
+                Manifest.BaseDirectory, path);
 
             //var name = Path.GetFileName(asset.RelativePath);
             //ImGui.Text($"");

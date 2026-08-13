@@ -22,6 +22,8 @@ namespace Phoenix.AssetTool.Cli
                 {
                     return;
                 }
+
+                AssetToolCli.InitGL();
                 AssetToolCli.KeepAlive = true;
 
                 Console.WriteLine("Auto mode enabled.");

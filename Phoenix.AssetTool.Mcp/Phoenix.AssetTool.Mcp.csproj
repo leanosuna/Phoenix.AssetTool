@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,30 +8,19 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <PackageId>Phoenix.AssetTool</PackageId>
+    <PackageId>Phoenix.AssetTool.Mcp</PackageId>
     <PackAsTool>true</PackAsTool>
-    <ToolCommandName>pat</ToolCommandName>
-    <TargetFramework>net10.0</TargetFramework>
+    <ToolCommandName>pat-mcp</ToolCommandName>
     <PackageOutputPath>C:\dev\LocalNuget</PackageOutputPath>
     <Authors>leanosuna</Authors>
-    <Product>Phoenix.AssetTool</Product>
+    <Product>Phoenix.AssetTool.Mcp</Product>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>1.0.3</Version>
-    <ApplicationIcon>tool.ico</ApplicationIcon>
-    <PackageIcon>tool.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="tool.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="..\LICENSE">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-    <None Include="..\Phoenix.AssetTool.Core\tool.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
@@ -42,12 +31,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.CommandLine" Version="2.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+    <PackageReference Include="ModelContextProtocol" Version="2.1.0" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Phoenix.AssetTool.Core\Phoenix.AssetTool.Core.csproj" />
-    <ProjectReference Include="..\Phoenix.AssetTool.Gui\Phoenix.AssetTool.Gui.csproj" />
   </ItemGroup>
 
 </Project>

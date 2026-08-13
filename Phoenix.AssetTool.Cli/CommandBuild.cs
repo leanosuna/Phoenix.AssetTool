@@ -29,6 +29,8 @@ namespace Phoenix.AssetTool.Cli
                 {
                     return;
                 }
+
+                AssetToolCli.InitGL();
                 
                 AssetToolCli.StartBuildPendingLoop();
 

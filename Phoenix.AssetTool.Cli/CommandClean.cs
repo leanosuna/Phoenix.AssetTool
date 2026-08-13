@@ -24,16 +24,7 @@ namespace Phoenix.AssetTool.Cli
 
         public static void Clean()
         {
-            var contentBin = Path.Combine(Manifest.BaseDirectory, "ContentBin");
-
-            if (!Directory.Exists(contentBin))
-            {
-                Console.WriteLine("ContentBin folder not found. Nothing to clean.");
-                return;
-            }
-
-            Directory.Delete(contentBin, recursive: true);
-            Console.WriteLine("ContentBin folder deleted.");
+            FileTools.CleanContentBin();
         }
     }
 }

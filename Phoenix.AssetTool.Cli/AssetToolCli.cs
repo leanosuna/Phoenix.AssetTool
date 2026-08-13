@@ -3,9 +3,6 @@ using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
 using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Shader;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
 using System.CommandLine;
 using System.Text;
 
@@ -18,7 +15,6 @@ namespace AssetTool.Cli
         public static int ExitCode = 0;
         private static Argument<FileInfo> _argumentManifest = default!;
 
-        private static IWindow? _glWindow;
         private static readonly System.Collections.Concurrent.ConcurrentQueue<List<AssetEntry>> _buildQueue = new();
         private static readonly System.Threading.SemaphoreSlim _buildSignal = new(0);
         
@@ -48,6 +44,8 @@ namespace AssetTool.Cli
             rootCommand.Subcommands.Add(CommandAuto.Setup());
             rootCommand.Subcommands.Add(CommandInit.Setup());
             rootCommand.Subcommands.Add(CommandAdd.Setup());
+            rootCommand.Subcommands.Add(CommandUpdate.Setup());
+            rootCommand.Subcommands.Add(CommandOptions.Setup());
             rootCommand.Subcommands.Add(CommandRemove.Setup());
             rootCommand.Subcommands.Add(CommandClean.Setup());
 
@@ -63,8 +61,6 @@ namespace AssetTool.Cli
             });
 
             ParseResult parseResult = rootCommand.Parse(args);
-            
-            InitGL();
             
             parseResult.Invoke();
 
@@ -208,19 +204,15 @@ namespace AssetTool.Cli
             return Manifest.CreateAbsolute(absolutePath);
         }
 
-        static void InitGL()
+        public static void InitGL()
         {
             try
             {
-                var options = WindowOptions.Default;
-                options.Size = new Vector2D<int>(1, 1);
-                options.IsVisible = false;
-                options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, new APIVersion(4, 1));
-
-                _glWindow = Window.Create(options);
-                _glWindow.Initialize();
-                var gl = GL.GetApi(_glWindow);
-                GLCompiler.Init(gl);
+                if (!GlContext.InitHiddenWindow(Manifest.BaseDirectory))
+                {
+                    Console.Error.WriteLine("Warning: Could not initialize an OpenGL context.");
+                    ExitCode = -1;
+                }
             }
             catch (Exception ex)
             {

@@ -22,9 +22,18 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
             }
             else
             {
-                if(JsonIOTools.Load(_absolutePath, out AssetLoadOptions alo))
+                try
                 {
-                    _alo = alo;
+                    if (JsonIOTools.Load(_absolutePath, out AssetLoadOptions alo))
+                    {
+                        _alo = alo;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"warning: could not read '{DefaultName}', using defaults. ({ex.Message})");
+                    _alo = new AssetLoadOptions();
+                    JsonIOTools.Save(_absolutePath, _alo);
                 }
             }
         }
@@ -54,9 +63,39 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
             return options;
         }
 
+        public static bool TryGet(string path, out object? options)
+        {
+            options = null;
+            if (_alo == null)
+                return false;
+
+            if (_alo.Models.TryGetValue(path, out var model))
+            {
+                options = model;
+                return true;
+            }
+            if (_alo.Textures.TryGetValue(path, out var texture))
+            {
+                options = texture;
+                return true;
+            }
+            if (_alo.Shaders.TryGetValue(path, out var shader))
+            {
+                options = shader;
+                return true;
+            }
+            return false;
+        }
+
         public static void Set<T>(string path, T options)
         {
-            switch(options)
+            if (_alo == null)
+            {
+                Console.Error.WriteLine("error: AssetOptions not initialized.");
+                return;
+            }
+
+            switch (options)
             {
                 case ModelLoadOptions model:
                     _alo.Models[path] = model;
@@ -67,7 +106,9 @@ namespace Phoenix.AssetTool.Core.AssetBuildOptions
                 case ShaderLoadOptions sh:
                     _alo.Shaders[path] = sh;
                     break;
-
+                default:
+                    Console.Error.WriteLine($"error: unsupported options type '{typeof(T).Name}'.");
+                    return;
             }
             Save();
         }

@@ -1,5 +1,6 @@
 ﻿using AssetTool.Cli;
 using Phoenix.AssetTool.Core;
+using Phoenix.AssetTool.Core.Shader;
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
@@ -31,6 +32,8 @@ namespace Phoenix.AssetTool.Cli
                     return;
                 }
                 Console.WriteLine("Init OK");
+
+                GlContext.LoadConfig(Manifest.BaseDirectory);
 
                 if (forced)
                     CommandClean.Clean();

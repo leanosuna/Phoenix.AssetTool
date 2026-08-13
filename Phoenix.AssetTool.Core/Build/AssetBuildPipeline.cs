@@ -93,22 +93,27 @@ namespace Phoenix.AssetTool.Core.Build
             return true;
         }
         
+        private static readonly object _manifestLock = new();
+
         private static void AddEmbTexToManifest(string assetPath, List<string> names)
         {
             var assetBaseDir = Path.GetDirectoryName(assetPath)!;
             var texType = AssetType.ExtTexture;
-            
-            foreach(var name in names)
+
+            lock (_manifestLock)
             {
-                var texRelative = Path.Combine(assetBaseDir, $"{name}.bin").Replace("\\","/");
-                var entry = new AssetEntry { RelativePath = texRelative, Type = texType};
+                foreach (var name in names)
+                {
+                    var texRelative = Path.Combine(assetBaseDir, $"{name}.bin").Replace("\\", "/");
+                    var entry = new AssetEntry { RelativePath = texRelative, Type = texType };
 
-                if (Manifest.Assets.Any(e => e.Type == texType && e.RelativePath == texRelative))
-                    return;
-                Manifest.Assets.Add(entry);
+                    if (Manifest.Assets.Any(e => e.Type == texType && e.RelativePath == texRelative))
+                        continue;
+                    Manifest.Assets.Add(entry);
+                }
+
+                Manifest.Save();
             }
-
-            Manifest.Save();
         }
     }
 }

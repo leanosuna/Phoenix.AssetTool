@@ -1,22 +1,25 @@
 using AssetTool.Cli;
 using Phoenix.AssetTool.Core;
+using Phoenix.AssetTool.Core.AssetBuildOptions;
 using System;
 using System.CommandLine;
 using System.IO;
+using System.Text;
+using System.Text.Json;
 
 namespace Phoenix.AssetTool.Cli
 {
-    internal static class CommandRemove
+    internal static class CommandOptions
     {
         public static Command Setup()
         {
             Argument<string[]> files = new("files")
             {
-                Description = "One or more file paths to remove from the manifest",
+                Description = "One or more tracked file paths to show options for",
                 Arity = ArgumentArity.OneOrMore
             };
 
-            Command command = new("rem", "Remove files from the manifest")
+            Command command = new("opt", "Show the current load options for tracked assets")
             {
                 files
             };
@@ -28,6 +31,8 @@ namespace Phoenix.AssetTool.Cli
 
                 var filePaths = res.GetValue(files);
                 if (filePaths == null) return;
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
 
                 foreach (var filePath in filePaths)
                 {
@@ -42,18 +47,25 @@ namespace Phoenix.AssetTool.Cli
                         continue;
                     }
 
-                    if (!File.Exists(absolutePath))
+                    var asset = Manifest.Assets.FirstOrDefault(a =>
+                        a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
+
+                    if (asset == null)
                     {
-                        Console.Error.WriteLine($"error: '{filePath}' not found.");
+                        Console.Error.WriteLine($"error: '{relative}' is not tracked. Use 'add' first.");
                         AssetToolCli.ExitCode = -1;
                         continue;
                     }
 
-                    FileTools.RemoveFile(relative, false);
-                    Console.WriteLine($"Removed '{relative}'");
-                }
+                    if (!AssetOptions.TryGet(relative, out var stored))
+                    {
+                        Console.WriteLine($"{relative}: no options stored, defaults will be used.");
+                        continue;
+                    }
 
-                Manifest.Save();
+                    Console.WriteLine($"{relative} [{asset.Type}]:");
+                    Console.WriteLine(JsonSerializer.Serialize(stored, options));
+                }
             });
 
             return command;

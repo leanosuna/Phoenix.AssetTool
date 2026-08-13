@@ -34,7 +34,7 @@ namespace Phoenix.AssetTool.Gui
             options.Title = "Phoenix Asset Tool";
             options.VSync = true;
             //options.WindowState = WindowState.Maximized;
-            var glApi = new APIVersion(4, 1);
+            var glApi = GlContext.ResolveRequestedApi(Environment.CurrentDirectory);
             options.API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.Default, glApi);
 
             Window = Silk.NET.Windowing.Window.Create(options);

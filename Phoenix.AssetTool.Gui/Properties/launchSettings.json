@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Phoenix.AssetTool.Gui": {
+      "commandName": "Project"
+    }
+  }
+}

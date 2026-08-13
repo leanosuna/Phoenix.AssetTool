@@ -1,11 +1,21 @@
 ﻿using NativeFileDialogNET;
 using Phoenix.AssetTool.Core.AssetBuildOptions;
+using Phoenix.AssetTool.Core.Model;
+using Phoenix.AssetTool.Core.Shader;
+using Phoenix.AssetTool.Core.Texture;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Reflection;
 namespace Phoenix.AssetTool.Core
 {
+    public enum AddFileResult
+    {
+        Added,
+        Exists,
+        UnknownType
+    }
+
     public static class FileTools
     {
         public static readonly Vector4 ColorWhite = new(1f, 1f, 1f, 1f); 
@@ -45,19 +55,19 @@ namespace Phoenix.AssetTool.Core
                 Manifest.Save();
         }
 
-        public static bool AddFile(string relative, bool save = true, bool silent = true)
+        public static AddFileResult AddFile(string relative, bool save = true, bool silent = true)
         {
             var type = GuessType(relative);
             if (type == AssetType.Unknown)
-                return false;
+                return AddFileResult.UnknownType;
 
             var existing = Manifest.Assets
                 .FirstOrDefault(a =>
                     a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
 
             if (existing != null)
-                return false;
-                        
+                return AddFileResult.Exists;
+
             Manifest.Assets.Add(new AssetEntry
             {
                 RelativePath = relative,
@@ -69,7 +79,7 @@ namespace Phoenix.AssetTool.Core
             if (save)
                 Manifest.Save();
 
-            return true;
+            return AddFileResult.Added;
         }
         public static void RemoveFile(string relative, bool save = true)
         {
@@ -119,8 +129,14 @@ namespace Phoenix.AssetTool.Core
             Manifest.Save();
         }
 
-        public static void AddDirectory(string absoluteDir, bool silent = true)
+        public static int AddDirectory(
+            string absoluteDir,
+            bool silent = true,
+            ModelLoadOptions? modelOptions = null,
+            TextureLoadOptions? textureOptions = null,
+            ShaderLoadOptions? shaderOptions = null)
         {
+            int added = 0;
             var files = Directory.EnumerateFiles(
                 absoluteDir,
                 "*.*",
@@ -135,10 +151,83 @@ namespace Phoenix.AssetTool.Core
                 if (relative.StartsWith("ContentBin/", StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                AddFile(relative, false, silent);
-                
+                if (relative.StartsWith(".."))
+                {
+                    if (!silent)
+                        Console.Error.WriteLine($"error: file '{file}' is outside the Content directory.");
+                    continue;
+                }
+
+                if (AddFile(relative, false, silent) == AddFileResult.Added)
+                    added++;
+
+                if (modelOptions != null && GuessType(relative) == AssetType.Model)
+                    AssetOptions.Set(relative, modelOptions);
+                if (textureOptions != null && GuessType(relative) == AssetType.Texture)
+                    AssetOptions.Set(relative, textureOptions);
+                if (shaderOptions != null && GuessType(relative) == AssetType.Shader)
+                    AssetOptions.Set(relative, shaderOptions);
             }
+            AssetOptions.Save();
             Manifest.Save();
+            return added;
+        }
+
+        public static List<string> AddAssetFile(
+            string relative,
+            ModelLoadOptions? modelOptions,
+            TextureLoadOptions? textureOptions)
+        {
+            var messages = new List<string>();
+            var type = GuessType(relative);
+            var result = AddFile(relative, save: false, silent: true);
+
+            switch (result)
+            {
+                case AddFileResult.Added:
+                    messages.Add($"Added '{relative}'");
+                    break;
+                case AddFileResult.Exists:
+                    var overridden = (type == AssetType.Model && modelOptions != null) ||
+                                     (type == AssetType.Texture && textureOptions != null);
+                    if (overridden)
+                    {
+                        var existing = Manifest.Assets.FirstOrDefault(a =>
+                            a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
+                        if (existing != null)
+                            existing.Type = type;
+                        messages.Add($"Updated '{relative}'");
+                    }
+                    else
+                    {
+                        messages.Add($"Already tracked '{relative}'");
+                    }
+                    break;
+                case AddFileResult.UnknownType:
+                    messages.Add($"error: unsupported asset type for '{relative}'.");
+                    break;
+            }
+
+            if (type == AssetType.Model && modelOptions != null)
+                AssetOptions.Set(relative, modelOptions);
+            if (type == AssetType.Texture && textureOptions != null)
+                AssetOptions.Set(relative, textureOptions);
+
+            return messages;
+        }
+
+        public static void CleanContentBin()
+        {
+            var contentBin = Path.Combine(Manifest.BaseDirectory, "ContentBin");
+
+            if (!Directory.Exists(contentBin))
+            {
+                Console.WriteLine("ContentBin folder not found. Nothing to clean.");
+                return;
+            }
+
+            Directory.Delete(contentBin, recursive: true);
+            Console.WriteLine("ContentBin folder deleted.");
         }
 
 
