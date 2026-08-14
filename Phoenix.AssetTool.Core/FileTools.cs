@@ -206,6 +206,10 @@ namespace Phoenix.AssetTool.Core
         }
 
         private static Dictionary<string, bool> _addedDirectories = new Dictionary<string, bool>();
+        public static void ResetDirectoryToggles()
+        {
+            _addedDirectories.Clear();
+        }
         public static void ToggleDirectory(string absoluteDir)
         {
             var files = Directory.EnumerateFiles(

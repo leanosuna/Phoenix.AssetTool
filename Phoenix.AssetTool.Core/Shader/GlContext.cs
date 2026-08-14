@@ -75,8 +75,8 @@ namespace Phoenix.AssetTool.Core.Shader
         {
             var mode = LoadConfig(dir, createIfMissing: false);
             var max = GetMaxSupported();
-            var target = ResolveTarget(mode, max, out _) ?? ResolveTarget(DefaultMode, max, out _);
-            return new APIVersion(target.Value.major, target.Value.minor);
+            var target = ResolveTarget(mode, max, out _) ?? ResolveTarget(DefaultMode, max, out _) ?? (4, 1);
+            return new APIVersion(target.major, target.minor);
         }
 
         private static IWindow? CreateWindow(string mode)
@@ -91,7 +91,7 @@ namespace Phoenix.AssetTool.Core.Shader
                 target = ResolveTarget(DefaultMode, max, out _);
             }
 
-            return TryCreateWindow(target.Value, out var window) ? window : null;
+            return TryCreateWindow(target ?? (4, 1), out var window) ? window : null;
         }
 
         private static (int major, int minor) GetMaxSupported()

@@ -116,12 +116,12 @@ namespace Phoenix.AssetTool.Core.Shader
                 }
 
 
-                for (var j = 0; j < items.Count; i++)
+                for (var j = 0; j < items.Count; j++)
                 {
                     if (skipPairIndices.Contains(j))
                         continue;
 
-                    var pairItem = items[i];
+                    var pairItem = items[j];
                     var pairAsset = pairItem.Asset;
                     var pairName = Path.GetFileNameWithoutExtension(pairAsset.RelativePath);
 

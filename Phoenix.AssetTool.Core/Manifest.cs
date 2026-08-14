@@ -67,6 +67,7 @@ namespace Phoenix.AssetTool.Core
             AbsolutePath = absolute.Replace("\\", "/");
             Name = name;
 
+            FileTools.ResetDirectoryToggles();
             _onManifestChange.ForEach(a => a.Invoke());
             Save();
             return true;
@@ -85,6 +86,7 @@ namespace Phoenix.AssetTool.Core
             AbsolutePath = Path.Combine(dir, name).Replace("\\","/");
             Name = Path.GetFileName(AbsolutePath);
 
+            FileTools.ResetDirectoryToggles();
             _onManifestChange.ForEach(a => a.Invoke());
             Save();
 
@@ -111,7 +113,8 @@ namespace Phoenix.AssetTool.Core
             BaseDirectory = Path.GetDirectoryName(path)!;
             AbsolutePath = path.Replace('\\', '/');
             Name = Path.GetFileName(AbsolutePath);
-            
+
+            FileTools.ResetDirectoryToggles();
             _onManifestChange.ForEach(a => a.Invoke());
 
             return true;

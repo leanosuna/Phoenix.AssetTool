@@ -3,11 +3,9 @@ using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.Build;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Text;
-using System.Xml.Linq;
 
 namespace Phoenix.AssetTool.Gui
 {
@@ -85,7 +83,7 @@ namespace Phoenix.AssetTool.Gui
                     var dirStr = asset.DirectorySet ?
                         (asset.DirectoryValid ?
                             $"{asset.DirectorySelected} " :
-                            "invalid directory. must be withing content.")
+                            "invalid directory. must be within content.")
                         : $"Select directory...##{asset.Path}";
 
                     if (ImGui.Button(dirStr))
@@ -205,7 +203,11 @@ namespace Phoenix.AssetTool.Gui
 
             var children = new List<DirectoryBrowserMeta>();
             foreach(var dir in Directory.GetDirectories(currentDir))
+            {
+                if (Path.GetFileName(dir).Equals("ContentBin", StringComparison.OrdinalIgnoreCase))
+                    continue;
                 children.Add(ProcessDirectoryRec(dir));
+            }
 
             var files = ProcessDirectoryFiles(Directory.GetFiles(currentDir));
 

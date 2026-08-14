@@ -1,5 +1,4 @@
-﻿using BCnEncoder.Shared;
-using ImGuiNET;
+﻿using ImGuiNET;
 using NativeFileDialogNET;
 using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core;
@@ -312,6 +311,8 @@ namespace Phoenix.AssetTool.Gui
         }
         public static void DrawShaderOptions(AssetEntry asset, string path)
         {
+            shaderOptions = AssetOptions.OfShader(path);
+
             var pathAbs = Path.Combine(
                 Manifest.BaseDirectory, path);
 

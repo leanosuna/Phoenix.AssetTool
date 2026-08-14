@@ -233,17 +233,17 @@ namespace Phoenix.AssetTool.Gui
                 else
                 {
                     var item = AssetBuildGui.Selected;
-                    ImGui.Text($"{Path.GetFileName(item.Asset.RelativePath)} FAILED:");
-                    var e = item.Error;
-
-                    var sz = ImGui.CalcTextSize(e) + new Vector2(30,10);
-                    
-                    
-                    ImGui.InputTextMultiline("##error",ref e, 1000, sz, ImGuiInputTextFlags.ReadOnly);
-                    
+                    if (item != null)
+                    {
+                        ImGui.Text($"{Path.GetFileName(item.Asset.RelativePath)} FAILED:");
+                        var e = item.Error ?? "";
+                        var sz = ImGui.CalcTextSize(e) + new Vector2(30,10);
+                        ImGui.InputTextMultiline("##error", ref e, 4000, sz, ImGuiInputTextFlags.ReadOnly);
+                    }
                 }
             }
 
+            ImGui.PopFont();
             _controller.Render();
         }
         static Vector4 Hex(string hex, float alpha = 1.0f)
@@ -270,25 +270,15 @@ namespace Phoenix.AssetTool.Gui
             style.TabRounding = 6f;
 
             // Catppuccin Latte
-            const string Rosewater = "#dc8a78";
-            const string Flamingo = "#dd7878";
-            const string Pink = "#ea76cb";
-            const string Mauve = "#8839ef";
             const string Red = "#d20f39";
-            const string Peach = "#fe640b";
-            const string Yellow = "#df8e1d";
             const string Green = "#40a02b";
             const string Teal = "#179299";
-            const string Sky = "#04a5e5";
             const string Sapphire = "#209fb5";
             const string Blue = "#1e66f5";
             const string Lavender = "#7287fd";
 
             //const string Text = "#4c4f69";
             const string Text = "#202020";
-
-            const string Subtext1 = "#5c5f77";
-            const string Subtext0 = "#6c6f85";
 
             const string Overlay2 = "#7c7f93";
             const string Overlay1 = "#8c8fa1";
@@ -388,23 +378,14 @@ namespace Phoenix.AssetTool.Gui
             style.TabRounding = 6f;
 
             // Catppuccin Mocha
-            const string Rosewater = "#f5e0dc";
-            const string Flamingo = "#f2cdcd";
-            const string Pink = "#f5c2e7";
-            const string Mauve = "#cba6f7";
             const string Red = "#f38ba8";
-            const string Peach = "#fab387";
-            const string Yellow = "#f9e2af";
             const string Green = "#a6e3a1";
             const string Teal = "#94e2d5";
-            const string Sky = "#89dceb";
             const string Sapphire = "#74c7ec";
             const string Blue = "#89b4fa";
             const string Lavender = "#b4befe";
 
             const string Text = "#cdd6f4";
-            const string Subtext1 = "#bac2de";
-            const string Subtext0 = "#a6adc8";
 
             const string Overlay2 = "#9399b2";
             const string Overlay1 = "#7f849c";
@@ -594,11 +575,6 @@ namespace Phoenix.AssetTool.Gui
             io.Fonts.SetTexID((nint)fontTex);
 
             io.Fonts.ClearTexData();
-
-            var first = _fonts.First();
-            ImGui.PushFont(first.Value);
-
-            SetFontSize(first.Key);
         }
         public static void SetFontSize(int size)
         {

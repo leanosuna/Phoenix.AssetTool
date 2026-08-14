@@ -133,7 +133,7 @@ namespace AssetTool.Cli
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine("manifest argument error.");
+                Console.Error.WriteLine($"manifest argument error. {e.Message}");
                 ExitCode = -1;
                 return false;
             }

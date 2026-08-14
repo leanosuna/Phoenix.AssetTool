@@ -15,7 +15,19 @@ namespace Phoenix.AssetTool.Core.Build
             AssetOptions.Save();
 
             var shaderItems = buildList.Where(status => status.Asset.Type == AssetType.Shader).ToList();
-            ShaderAssetHandler.Build(shaderItems);
+            try
+            {
+                ShaderAssetHandler.Build(shaderItems);
+            }
+            catch (Exception ex)
+            {
+                foreach (var status in shaderItems)
+                {
+                    status.State = AssetBuildState.Failed;
+                    status.Error = ex.Message;
+                }
+                Console.WriteLine($"Shader build aborted: {ex.Message}");
+            }
 
             var taskList = new List<Task>();
             taskList.AddRange(buildList.Select(status =>

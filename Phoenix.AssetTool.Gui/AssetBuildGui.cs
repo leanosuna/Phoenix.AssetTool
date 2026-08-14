@@ -1,12 +1,7 @@
 ﻿using ImGuiNET;
 using Phoenix.AssetTool.Core;
 using Phoenix.AssetTool.Core.Build;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Numerics;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
 
 
 namespace Phoenix.AssetTool.Gui
@@ -14,15 +9,18 @@ namespace Phoenix.AssetTool.Gui
     public static class AssetBuildGui
     {
         static bool showPendingOnly = false;
-        public static AssetBuildStatus Selected = default!;
+        public static AssetBuildStatus? Selected;
         public static void DrawBuildWindow(float deltaTime)
         {
-            var total = AssetBuildController.Status.BuildList.Count;
-            var done = AssetBuildController.Status.BuildList.Count(a =>
+            var buildList = AssetBuildController.Status.BuildList;
+            var total = buildList.Count;
+            var done = buildList.Count(a =>
                 a.State == AssetBuildState.Built ||
                 a.State == AssetBuildState.Skipped ||
                 a.State == AssetBuildState.Failed);
 
+            if (Selected != null && !buildList.Any(a => ReferenceEquals(a, Selected)))
+                Selected = null;
 
             var headerOpen = ImGui.CollapsingHeader("build info");
             
@@ -30,7 +28,8 @@ namespace Phoenix.AssetTool.Gui
             if (total > 0 && done != total)
             {
                 ImGui.SameLine();
-                ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Vector4.UnitY);
+                var barColor = AssetToolGui.DarkTheme ? FileTools.ColorGreen : FileTools.ColorGreenDark;
+                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, barColor);
                 ImGui.ProgressBar(done / (float)total, new Vector2(-1, 0));
                 ImGui.PopStyleColor();
             }
@@ -39,7 +38,7 @@ namespace Phoenix.AssetTool.Gui
             {
                 ImGui.Checkbox("Show pending only", ref showPendingOnly);
 
-                foreach (var item in AssetBuildController.Status.BuildList)
+                foreach (var item in buildList)
                 {
                     if (item.Asset.Type == AssetType.ExtTexture)
                         continue;
@@ -99,10 +98,7 @@ namespace Phoenix.AssetTool.Gui
                 //ImGui.SameLine(ImGui.GetWindowWidth() - 300);
                 DrawSpinner(item, color);
                 ImGui.SameLine();
-                if (item.State != AssetBuildState.Built &&
-                    item.State != AssetBuildState.Skipped &&
-                    item.State != AssetBuildState.Failed)
-                    str += $"{item.Step}/{item.MaxSteps}";
+                str += $"{item.Step}/{item.MaxSteps}";
                 ImGui.Text(str);
                 ImGui.SameLine();
             }
