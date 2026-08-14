@@ -45,8 +45,11 @@ namespace Phoenix.AssetTool.Core
                 Save();
             }
         }
-        public static bool CreateAbsolute(string absolute)
+        public static bool CreateAbsolute(string absolute, bool replaceOnFound = false)
         {
+            if (replaceOnFound && File.Exists(absolute))
+                File.Delete(absolute);
+
             var am = new AssetManifest();
             var dir = Path.GetDirectoryName(absolute);
             var name = Path.GetFileName(absolute);
@@ -110,6 +113,31 @@ namespace Phoenix.AssetTool.Core
             Name = Path.GetFileName(AbsolutePath);
             
             _onManifestChange.ForEach(a => a.Invoke());
+
+            return true;
+        }
+
+        public static bool TryLoad(string path, out string? error)
+        {
+            error = null;
+
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                error = "manifest path is empty.";
+                return false;
+            }
+
+            if (!File.Exists(path))
+            {
+                error = $"manifest file not found at [{path}]";
+                return false;
+            }
+
+            if (!Load(path))
+            {
+                error = $"manifest failed to load: {path}";
+                return false;
+            }
 
             return true;
         }

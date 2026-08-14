@@ -6,6 +6,7 @@ using System.CommandLine;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Phoenix.AssetTool.Cli
 {
@@ -32,15 +33,18 @@ namespace Phoenix.AssetTool.Cli
                 var filePaths = res.GetValue(files);
                 if (filePaths == null) return;
 
-                var options = new JsonSerializerOptions { WriteIndented = true };
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Converters = { new JsonStringEnumConverter() }
+                };
 
                 foreach (var filePath in filePaths)
                 {
                     var absolutePath = Path.GetFullPath(filePath);
-                    var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath)
-                        .Replace('\\', '/');
+                    var relative = FileTools.ToRelative(absolutePath);
 
-                    if (relative.StartsWith(".."))
+                    if (relative == null)
                     {
                         Console.Error.WriteLine($"error: '{filePath}' is outside the Content directory.");
                         AssetToolCli.ExitCode = -1;

@@ -71,6 +71,7 @@ Each tool takes a `manifestPath` argument (absolute path to
 | `assettool_clean` | Delete the `ContentBin` folder. |
 | `assettool_get_asset_options` | Get stored load options (JSON) for an asset. |
 | `assettool_set_asset_options` | Set/replace load options for an asset. |
+| `assettool_update_asset_options` | Update load options for an asset, keeping any option that is not provided. |
 
 ### Example invocations
 

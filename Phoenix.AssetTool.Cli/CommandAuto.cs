@@ -44,27 +44,6 @@ namespace Phoenix.AssetTool.Cli
         }
 
 
-        public static bool IsShaderPair(AssetEntry pair, AssetEntry entry)
-        {
-            var rp1 = pair.RelativePath;
-            var rp2 = entry.RelativePath;
-
-            var dir1 = Path.GetDirectoryName(rp1)!;
-            var dir2 = Path.GetDirectoryName(rp2)!;
-
-            var ext1 = Path.GetExtension(rp1);
-            var ext2 = Path.GetExtension(rp2);
-
-            var n1 = Path.GetFileNameWithoutExtension(rp1);
-            var n2 = Path.GetFileNameWithoutExtension(rp2);
-
-            return
-                dir1.Equals(dir2, StringComparison.InvariantCultureIgnoreCase) &&
-                n1.Equals(n2, StringComparison.InvariantCultureIgnoreCase) &&
-                !ext1.Equals(ext2, StringComparison.InvariantCultureIgnoreCase);
-
-        }
-
         static List<AssetEntry> buildList = new();
 
         static Dictionary<string, AssetEntry> absolutePaths = new();
@@ -80,7 +59,7 @@ namespace Phoenix.AssetTool.Cli
 
                 if(asset.Type == AssetType.Shader)
                 {
-                    var pairAsset = Manifest.Assets.Find(a => IsShaderPair(a, asset));
+                    var pairAsset = Manifest.Assets.Find(a => FileTools.IsShaderPair(a, asset));
                     if (pairAsset != null)
                         buildList.Add(pairAsset);
                 }

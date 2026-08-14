@@ -6,6 +6,7 @@ using Phoenix.AssetTool.Core.Shader;
 using System.ComponentModel;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Phoenix.AssetTool.Mcp
 {
@@ -211,7 +212,11 @@ namespace Phoenix.AssetTool.Mcp
                 if (!AssetOptions.TryGet(relative, out var options))
                     return $"No options stored for '{relative}'. Defaults will be used.";
 
-                return JsonSerializer.Serialize(options, new JsonSerializerOptions { WriteIndented = true });
+                return JsonSerializer.Serialize(options, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Converters = { new JsonStringEnumConverter() }
+                });
             });
         }
 
@@ -276,21 +281,64 @@ namespace Phoenix.AssetTool.Mcp
             });
         }
 
+        [McpServerTool, Description("Update load options for a tracked asset in a Phoenix asset manifest, keeping any option that is not provided.")]
+        public static async Task<string> UpdateAssetOptions(
+            string manifestPath,
+            string path,
+            bool? extractTextures = null,
+            string? flags = null,
+            bool? animated = null,
+            bool? preTransform = null,
+            float? scale = null,
+            string[]? animations = null,
+            bool? mipmaps = null,
+            string? format = null,
+            string? wrapS = null,
+            string? wrapT = null,
+            string? min = null,
+            string? mag = null,
+            float? anisotropy = null)
+        {
+            return await Run(() =>
+            {
+                if (!TryLoadManifest(manifestPath, out var loadError))
+                    return loadError;
+
+                var relative = ToRelative(path);
+                if (relative == null)
+                    return $"error: '{path}' is outside the Content directory.";
+
+                if (!File.Exists(Path.Combine(Manifest.BaseDirectory, relative)))
+                    return $"error: '{path}' not found.";
+
+                var errors = new List<string>();
+                var messages = FileTools.UpdateAssetFile(
+                    relative, Manifest.BaseDirectory,
+                    extractTextures, flags, animated, preTransform, scale, animations,
+                    mipmaps, format, wrapS, wrapT, min, mag, anisotropy, errors);
+
+                var sb = new StringBuilder();
+                foreach (var message in messages)
+                    sb.AppendLine(message);
+                foreach (var error in errors)
+                    sb.AppendLine(error);
+
+                AssetOptions.Save();
+                Manifest.Save();
+
+                return sb.ToString().TrimEnd();
+            });
+        }
+
         private static bool TryLoadManifest(string manifestPath, out string error)
         {
+            if (!Manifest.TryLoad(manifestPath, out var loadError))
+            {
+                error = $"error: {loadError}";
+                return false;
+            }
+
             error = "";
-            if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath))
-            {
-                error = $"error: manifest file not found: {manifestPath}";
-                return false;
-            }
-
-            if (!Manifest.Load(manifestPath))
-            {
-                error = $"error: failed to load manifest: {manifestPath}";
-                return false;
-            }
-
             return true;
         }
 

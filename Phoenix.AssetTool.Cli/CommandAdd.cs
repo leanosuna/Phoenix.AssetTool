@@ -121,11 +121,7 @@ namespace Phoenix.AssetTool.Cli
                     res.GetValue(anisotropy),
                     errors);
 
-                foreach (var error in errors)
-                {
-                    Console.Error.WriteLine(error);
-                    AssetToolCli.ExitCode = -1;
-                }
+                AssetToolCli.PrintMessages(errors);
 
                 foreach (var filePath in filePaths)
                 {
@@ -144,7 +140,14 @@ namespace Phoenix.AssetTool.Cli
                     }
                     else if (File.Exists(absolutePath))
                     {
-                        AddFile(absolutePath, modelOptions, textureOptions);
+                        var relative = FileTools.ToRelative(absolutePath);
+                        if (relative == null)
+                        {
+                            Console.Error.WriteLine($"error: file '{absolutePath}' is outside the Content directory.");
+                            AssetToolCli.ExitCode = -1;
+                            continue;
+                        }
+                        AssetToolCli.PrintMessages(FileTools.AddAssetFile(relative, modelOptions, textureOptions));
                     }
                     else
                     {
@@ -158,36 +161,6 @@ namespace Phoenix.AssetTool.Cli
             });
 
             return command;
-        }
-
-        private static void AddFile(
-            string absolutePath,
-            ModelLoadOptions? modelOptions,
-            TextureLoadOptions? textureOptions)
-        {
-            var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath)
-                .Replace('\\', '/');
-
-            if (relative.StartsWith(".."))
-            {
-                Console.Error.WriteLine($"error: file '{absolutePath}' is outside the Content directory.");
-                AssetToolCli.ExitCode = -1;
-                return;
-            }
-
-            var messages = FileTools.AddAssetFile(relative, modelOptions, textureOptions);
-            foreach (var message in messages)
-            {
-                if (message.StartsWith("error:", StringComparison.Ordinal))
-                {
-                    Console.Error.WriteLine(message);
-                    AssetToolCli.ExitCode = -1;
-                }
-                else
-                {
-                    Console.WriteLine(message);
-                }
-            }
         }
     }
 }

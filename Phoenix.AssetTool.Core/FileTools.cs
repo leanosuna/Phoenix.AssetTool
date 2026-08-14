@@ -95,6 +95,116 @@ namespace Phoenix.AssetTool.Core
             if (save)
                 Manifest.Save();
         }
+
+        public static string? ToRelative(string absolutePath)
+        {
+            var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath).Replace('\\', '/');
+            return relative.StartsWith("..") ? null : relative;
+        }
+
+        public static List<string> RemoveAssetFile(string absolutePath)
+        {
+            var relative = ToRelative(absolutePath);
+            if (relative == null)
+                return [$"error: file '{absolutePath}' is outside the Content directory."];
+
+            if (!File.Exists(absolutePath))
+                return [$"error: '{absolutePath}' not found."];
+
+            RemoveFile(relative, save: false);
+            return [$"Removed '{relative}'"];
+        }
+
+        public static List<string> UpdateAssetFile(
+            string relative,
+            string baseDirectory,
+            bool? extractTextures,
+            string? flags,
+            bool? animated,
+            bool? preTransform,
+            float? scale,
+            string[]? animations,
+            bool? mipmaps,
+            string? format,
+            string? wrapS,
+            string? wrapT,
+            string? min,
+            string? mag,
+            float? anisotropy,
+            List<string> errors)
+        {
+            var messages = new List<string>();
+
+            var modelProvided = !OptionParsers.HasModelOptions(
+                extractTextures, flags, animated, preTransform, scale, animations);
+            var textureProvided = !OptionParsers.HasTextureOptions(
+                mipmaps, format, wrapS, wrapT, min, mag, anisotropy);
+
+            if (!modelProvided && !textureProvided)
+            {
+                messages.Add("error: no options provided. Pass at least one option flag.");
+                return messages;
+            }
+
+            var asset = Manifest.Assets.FirstOrDefault(a =>
+                a.RelativePath.Equals(relative, StringComparison.OrdinalIgnoreCase));
+
+            if (asset == null)
+            {
+                messages.Add($"error: '{relative}' is not tracked. Use 'add' first.");
+                return messages;
+            }
+
+            switch (asset.Type)
+            {
+                case AssetType.Model:
+                    var modelOptions = AssetOptions.OfModel(relative);
+                    if (modelProvided)
+                    {
+                        OptionParsers.ApplyModelOptions(
+                            modelOptions, extractTextures, flags, animated, preTransform, scale, animations,
+                            baseDirectory, errors);
+                        AssetOptions.Set(relative, modelOptions);
+                    }
+                    break;
+
+                case AssetType.Texture:
+                    var textureOptions = AssetOptions.OfTexture(relative);
+                    if (textureProvided)
+                    {
+                        OptionParsers.ApplyTextureOptions(
+                            textureOptions, mipmaps, format, wrapS, wrapT, min, mag, anisotropy, errors);
+                        AssetOptions.Set(relative, textureOptions);
+                    }
+                    break;
+
+                case AssetType.Shader:
+                case AssetType.ExtTexture:
+                    messages.Add($"error: asset type '{asset.Type}' has no load options to update.");
+                    return messages;
+            }
+
+            messages.Add($"Updated '{relative}'");
+            return messages;
+        }
+
+        public static bool IsShaderPair(AssetEntry pair, AssetEntry entry)
+        {
+            var dir1 = Path.GetDirectoryName(pair.RelativePath)!;
+            var dir2 = Path.GetDirectoryName(entry.RelativePath)!;
+
+            var ext1 = Path.GetExtension(pair.RelativePath);
+            var ext2 = Path.GetExtension(entry.RelativePath);
+
+            var n1 = Path.GetFileNameWithoutExtension(pair.RelativePath);
+            var n2 = Path.GetFileNameWithoutExtension(entry.RelativePath);
+
+            return
+                dir1.Equals(dir2, StringComparison.InvariantCultureIgnoreCase) &&
+                n1.Equals(n2, StringComparison.InvariantCultureIgnoreCase) &&
+                !ext1.Equals(ext2, StringComparison.InvariantCultureIgnoreCase);
+        }
+
         private static Dictionary<string, bool> _addedDirectories = new Dictionary<string, bool>();
         public static void ToggleDirectory(string absoluteDir)
         {

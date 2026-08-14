@@ -157,29 +157,36 @@ namespace AssetTool.Cli
             }
             return true;
         }
+        public static void PrintMessages(IEnumerable<string> messages)
+        {
+            foreach (var message in messages)
+            {
+                if (message.StartsWith("error:", StringComparison.Ordinal))
+                {
+                    Console.Error.WriteLine(message);
+                    ExitCode = -1;
+                }
+                else
+                {
+                    Console.WriteLine(message);
+                }
+            }
+        }
+
         public static bool TryLoadManifest(ParseResult res, bool silent = false)
         {
             if (!TryParse(res, out var absolutePath, silent))
                 return false;
 
-            if (!File.Exists(absolutePath))
+            if (!Manifest.TryLoad(absolutePath, out var error))
             {
                 if (!silent)
-                    Console.Error.WriteLine($"manifest file not found at [{absolutePath}] ");
-                ExitCode = -1;
-                return false;
-            }
-            var fileName = Path.GetFileName(absolutePath);
-
-            if (!Manifest.Load(absolutePath))
-            {
-                if (!silent)
-                    Console.Error.WriteLine($"manifest failed to load.");
+                    Console.Error.WriteLine(error);
                 ExitCode = -1;
                 return false;
             }
             if (!silent)
-                Console.WriteLine($"Loaded {fileName}");
+                Console.WriteLine($"Loaded {Path.GetFileName(absolutePath)}");
 
             return true;
         }
@@ -189,19 +196,13 @@ namespace AssetTool.Cli
             if (!TryParse(res, out var absolutePath, silent: false))
                 return false;
 
-            if (File.Exists(absolutePath))
+            if (File.Exists(absolutePath) && !replaceOnFound)
             {
-                if (!replaceOnFound)
-                {
-                    Console.Error.WriteLine($"manifest file found at [{absolutePath}], use -force if youd like to replace it");
-
-                    return false;
-                }
-
-                File.Delete(absolutePath);
+                Console.Error.WriteLine($"manifest file found at [{absolutePath}], use -force if youd like to replace it");
+                return false;
             }
-            
-            return Manifest.CreateAbsolute(absolutePath);
+
+            return Manifest.CreateAbsolute(absolutePath, replaceOnFound);
         }
 
         public static void InitGL()

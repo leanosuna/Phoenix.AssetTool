@@ -32,25 +32,7 @@ namespace Phoenix.AssetTool.Cli
                 foreach (var filePath in filePaths)
                 {
                     var absolutePath = Path.GetFullPath(filePath);
-                    var relative = Path.GetRelativePath(Manifest.BaseDirectory, absolutePath)
-                        .Replace('\\', '/');
-
-                    if (relative.StartsWith(".."))
-                    {
-                        Console.Error.WriteLine($"error: '{filePath}' is outside the Content directory.");
-                        AssetToolCli.ExitCode = -1;
-                        continue;
-                    }
-
-                    if (!File.Exists(absolutePath))
-                    {
-                        Console.Error.WriteLine($"error: '{filePath}' not found.");
-                        AssetToolCli.ExitCode = -1;
-                        continue;
-                    }
-
-                    FileTools.RemoveFile(relative, false);
-                    Console.WriteLine($"Removed '{relative}'");
+                    AssetToolCli.PrintMessages(FileTools.RemoveAssetFile(absolutePath));
                 }
 
                 Manifest.Save();

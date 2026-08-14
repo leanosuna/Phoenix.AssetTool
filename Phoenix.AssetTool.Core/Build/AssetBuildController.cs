@@ -25,6 +25,16 @@ namespace Phoenix.AssetTool.Core.Build
             return await StartBuild([asset], rebuild, onFinish);
         }
 
+        public static async Task<BuildStatus> StartBuild(string[] relativePaths, bool rebuild, Action<bool>? onFinish = null)
+        {
+            var assets = Manifest.Assets
+                .Where(a => relativePaths.Any(p =>
+                    a.RelativePath.Equals(p, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            return await StartBuild(assets, rebuild, onFinish);
+        }
+
         public static async Task<BuildStatus> StartBuild(List<AssetEntry> assets, bool rebuild, Action<bool>? onFinish = null)
         {
             if (Status.State == BuildState.BUSY)

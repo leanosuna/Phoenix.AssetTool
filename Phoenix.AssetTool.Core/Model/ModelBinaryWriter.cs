@@ -59,7 +59,15 @@ namespace Phoenix.AssetTool.Core.Model
             status.MaxSteps = 1;
 
             if (options.ExtractTextures)
+            {
                 texNames = ExtractTextures(outputPath, modelProcessData);
+                if(texNames.Count == 0)
+                {
+                    status.State = AssetBuildState.Failed;
+                    status.Error = "No embedded textures found";
+                    throw new Exception(status.Error);
+                }
+            }
 
             if (options.IsAnimated)
             {
