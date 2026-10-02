@@ -1,4 +1,4 @@
-﻿using Silk.NET.Assimp;
+using Silk.NET.Assimp;
 using Phoenix.Rendering.Geometry;
 using System.Numerics;
 namespace Phoenix.AssetTool.Core.Model.Animation
@@ -17,7 +17,7 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             var name = Path.GetFileNameWithoutExtension(path);
 
             path = Path.Combine(Manifest.BaseDirectory , path).Replace("\\", "/");
-            var assimp = Assimp.GetApi();
+            var assimp = ModelBinaryWriter.GetAssimpApi();
             var scene = assimp.ImportFile(path, (uint)(0));
 
             var sceneNull = scene == null;
@@ -28,6 +28,9 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                 var error = assimp.GetErrorStringS();
                 throw new Exception(error);
             }
+
+            // ModelDiagnostics.DumpAnimationScene(path, scene);
+
             if (!loadData.ModelHierarchySet)
             {
                 var globalTransform = Matrix4x4.Transpose(rootNode->MTransformation);

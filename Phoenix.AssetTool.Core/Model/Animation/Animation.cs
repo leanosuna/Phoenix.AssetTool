@@ -1,4 +1,4 @@
-﻿using Silk.NET.Assimp;
+using Silk.NET.Assimp;
 using Phoenix.Rendering.Geometry;
 using System.Numerics;
 
@@ -135,6 +135,10 @@ namespace Phoenix.AssetTool.Core.Model.Animation
         bool GetBoneInfo(string nodeName, Dictionary<string, BoneInfo> boneInfoMap, out BoneInfo info)
         {
             var trimmedNodeName = AnimationLoader.TrimBoneName(nodeName);
+            int fbxIdx = trimmedNodeName.IndexOf("_$AssimpFbx$_", StringComparison.OrdinalIgnoreCase);
+            if (fbxIdx != -1)
+                trimmedNodeName = trimmedNodeName.Substring(0, fbxIdx);
+
             foreach(var e in boneInfoMap)
             {
                 var trimmedKey = AnimationLoader.TrimBoneName(e.Key);
@@ -146,7 +150,6 @@ namespace Phoenix.AssetTool.Core.Model.Animation
             }
             info = default!;
             return false;
-            
         }
         unsafe Keyframe[][] ReadKeyFrames(Silk.NET.Assimp.Animation* anim, Dictionary<string, BoneInfo> boneInfoMap)
         {
@@ -170,8 +173,8 @@ namespace Phoenix.AssetTool.Core.Model.Animation
                     continue;
 
                 var posKeyCount = channel->MNumPositionKeys;
-                var rotKeyCount = channel->MNumPositionKeys;
-                var sclKeyCount = channel->MNumPositionKeys;
+                var rotKeyCount = channel->MNumRotationKeys;
+                var sclKeyCount = channel->MNumScalingKeys;
 
 
                 int maxKeys = (int)Math.Max(Math.Max(posKeyCount, rotKeyCount), sclKeyCount);

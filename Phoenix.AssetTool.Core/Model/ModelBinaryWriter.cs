@@ -1,4 +1,4 @@
-﻿using Phoenix.AssetImport.Texture;
+using Phoenix.AssetImport.Texture;
 using Phoenix.AssetTool.Core.Build;
 using Phoenix.AssetTool.Core.Model.Animation;
 using Phoenix.AssetTool.Core.Texture;
@@ -29,18 +29,30 @@ namespace Phoenix.AssetTool.Core.Model
     {
         const int MAX_BONE_INFLUENCE = 4;
 
+        public static Assimp GetAssimpApi()
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                var candidates = new List<string>();
+                var path6 = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libassimp.so.6");
+                var path5 = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libassimp.so.5");
+                if (System.IO.File.Exists(path6)) candidates.Add(path6);
+                if (System.IO.File.Exists(path5)) candidates.Add(path5);
+                candidates.Add("libassimp.so.6");
+                candidates.Add("libassimp.so.5");
+                candidates.Add("libassimp.so");
+                return new Assimp(Assimp.CreateDefaultContext(candidates.ToArray()));
+            }
+            return Assimp.GetApi();
+        }
+
         public static unsafe List<string> Build(AssetBuildStatus status, ModelLoadOptions options,
             string sourcePath, string outputPath)
         {
             List<string> texNames = new List<string>();
+            // ModelDiagnostics.Initialize();
 
-            if (OperatingSystem.IsLinux())
-            {
-                var path = Path.Combine(AppContext.BaseDirectory, "runtimes", "linux-x64", "native", "libassimp.so.5");
-                NativeLibrary.Load(path);
-            }
-
-            var assimp = Assimp.GetApi();
+            var assimp = GetAssimpApi();
             var scene = assimp.ImportFile(sourcePath, options.AssimpFlags);
 
             if (scene == null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
@@ -51,9 +63,13 @@ namespace Phoenix.AssetTool.Core.Model
                 throw new Exception(error);
             }
 
+            // ModelDiagnostics.DumpModelScene(scene);
+
             var modelProcessData = new ModelProcessData { Status = status, Scene = scene, LoadOptions = options };
 
             ProcessNode(scene->MRootNode, Matrix4x4.Identity, modelProcessData);
+
+            // ModelDiagnostics.DumpBoneInfoMap(modelProcessData.BoneInfoMap);
 
             status.Step = 0;
             status.MaxSteps = 1;
@@ -75,14 +91,20 @@ namespace Phoenix.AssetTool.Core.Model
                 modelProcessData.Animations = animations;
                 modelProcessData.AnimationLoadData = data;
 
+                // ModelDiagnostics.DumpAnimatorNodes(data.AnimatorNodes, data.InverseGlobalTransform);
+
                 foreach (var anim in animations)
+                {
                     anim.Precompute(data.AnimatorNodes, data.InverseGlobalTransform);
+                    // ModelDiagnostics.DumpPrecomputedAnimation(anim);
+                }
             }
 
 
             WriteBinary(outputPath, modelProcessData);
             Interlocked.Increment(ref status.Step);
             _ = AwaitTexBinaries(modelProcessData);
+            // ModelDiagnostics.Flush();
             //ReadBinary(outputPath);
             return texNames;
         }
@@ -312,7 +334,7 @@ namespace Phoenix.AssetTool.Core.Model
             {
                 var assimpMesh = modelProcessData.Scene->MMeshes[node->MMeshes[i]];
 
-                var mesh = ProcessMesh(assimpMesh, absoluteTransform, modelProcessData);
+                var mesh = ProcessMesh(assimpMesh, currentTransform, absoluteTransform, modelProcessData);
 
                 meshes.Add(mesh);
 
@@ -331,7 +353,7 @@ namespace Phoenix.AssetTool.Core.Model
             }
         }
 
-        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 absoluteTransform, ModelProcessData modelProcessData)
+        private unsafe static Mesh ProcessMesh(AssimpMesh* mesh, Matrix4x4 currentTransform, Matrix4x4 absoluteTransform, ModelProcessData modelProcessData)
         {
             // data to fill
             List<Vertex> vertices = new List<Vertex>();
@@ -386,7 +408,7 @@ namespace Phoenix.AssetTool.Core.Model
             }
 
             if (modelProcessData.LoadOptions.IsAnimated)
-                ExtractBoneWeights(vertices, mesh, modelProcessData);
+                ExtractBoneWeights(vertices, mesh, currentTransform, modelProcessData);
 
             //if (_meshAttributes.HasFlag(MeshAttributes.boneIds) && _meshAttributes.HasFlag(MeshAttributes.boneWeights))
             //{
@@ -402,7 +424,7 @@ namespace Phoenix.AssetTool.Core.Model
             return new Mesh(vertices, indices, absoluteTransform, name, aabb, materialIndex);
         }
 
-        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, ModelProcessData modelProcessData)
+        private unsafe static void ExtractBoneWeights(List<Vertex> vertices, AssimpMesh* mesh, Matrix4x4 currentTransform, ModelProcessData modelProcessData)
         {
             // Temporary dictionary to collect all influences per vertex
             var vertexInfluences = new Dictionary<int, List<(int BoneId, float Weight)>>();
@@ -414,6 +436,10 @@ namespace Phoenix.AssetTool.Core.Model
 
 
                 var offset = mesh->MBones[boneID]->MOffsetMatrix;
+                if (Matrix4x4.Invert(currentTransform, out var invMeshTransform))
+                {
+                    offset = offset * invMeshTransform;
+                }
                 var weights = mesh->MBones[boneID]->MWeights;
                 var numWeights = mesh->MBones[boneID]->MNumWeights;
 
